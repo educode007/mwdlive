@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Compass Rose - Live Mode</title>
+    <style>
+      :root {
+        --bg: #e9e9e9;
+        --panel: #efefef;
+        --text: #202020;
+        --muted: #5b5b5b;
+        --blue: #2a49ff;
+        --maroon: #7b0020;
+        --green: #c9f0c9;
+        --green-border: #7bc97b;
+      }
+
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .frame {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      .titlebar {
+        padding: 6px 10px;
+        font-size: 14px;
+        font-weight: 700;
+        text-align: center;
+        background: #dcdcdc;
+        border-bottom: 1px solid #c8c8c8;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 240px minmax(520px, 1fr) 240px;
+        gap: 0;
+        align-items: stretch;
+        height: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+
+      .left, .right {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 6px;
+      }
+
+      .stats {
+        font-size: 18px;
+        line-height: 1.35;
+        padding: 4px 0;
+      }
+
+      .stats .line {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .pill {
+        background: var(--green);
+        border: 1px solid var(--green-border);
+        border-radius: 999px;
+        padding: 3px 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 4px 0;
+      }
+
+      .pill .name {
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.05;
+        color: #1a1a1a;
+        margin-bottom: 0;
+      }
+
+      .pill .val {
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.05;
+      }
+
+      .pill .time {
+        font-size: 12px;
+        line-height: 1.05;
+        color: var(--muted);
+        margin-top: 0;
+      }
+
+      .center {
+        display: grid;
+        grid-template-rows: 1fr auto;
+        align-items: center;
+      }
+
+      .compass-wrap {
+        position: relative;
+        display: grid;
+        place-items: center;
+      }
+
+      canvas {
+        width: min(680px, 70vmin);
+        height: min(680px, 70vmin);
+        background: transparent;
+      }
+
+      .center-overlay {
+        position: absolute;
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .center-box {
+        text-align: center;
+        transform: translateY(-8px);
+      }
+
+      .center-label {
+        font-size: 21px;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .center-value {
+        display: inline-block;
+        font-size: 37px;
+        font-weight: 800;
+        color: #c01313;
+        background: #f7f7f7;
+        border-radius: 10px;
+        padding: 3px 11px;
+        margin-top: 4px;
+        border: 1px solid #d0d0d0;
+      }
+
+      .center-counter {
+        font-size: 14px;
+        color: var(--muted);
+        margin-top: 6px;
+        font-weight: 700;
+      }
+
+      .bottom {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        align-items: end;
+        gap: 10px;
+        padding: 0 10px 6px 10px;
+      }
+
+      .bigbox {
+        display: grid;
+        grid-template-rows: auto auto;
+        align-items: center;
+        justify-items: center;
+      }
+
+      .bigbox .label {
+        font-size: 26px;
+        color: var(--muted);
+        margin-bottom: 2px;
+      }
+
+      .bigbox .bigval {
+        font-size: 56px;
+        font-weight: 800;
+        background: #f7f7f7;
+        border: 1px solid #d0d0d0;
+        border-radius: 12px;
+        padding: 6px 18px;
+        min-width: 170px;
+        text-align: center;
+      }
+
+      .bigbox.inc .bigval { color: #7b0020; }
+      .bigbox.azm .bigval { color: #2a49ff; }
+
+      .foot {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+        color: var(--muted);
+        font-weight: 700;
+        padding: 0 10px;
+      }
+
+      .bat-on { color: #c01313; }
+
+      .top-right {
+        text-align: right;
+        padding-top: 4px;
+        font-size: 16px;
+        color: var(--muted);
+      }
+
+      .pump {
+        display: inline-block;
+        margin-top: 6px;
+        padding: 6px 14px;
+        border-radius: 12px;
+        background: var(--green);
+        border: 1px solid var(--green-border);
+        color: #1a1a1a;
+        font-weight: 800;
+      }
+
+      .pump.pump-off {
+        background: var(--maroon);
+        border-color: #5a0b0b;
+        color: #fff;
+      }
+
+      .pill.bool-true {
+        background: var(--maroon);
+        border-color: #5a0b0b;
+        color: #fff;
+      }
+
+      .pill.bool-true .name,
+      .pill.bool-true .val,
+      .pill.bool-true .time {
+        color: #fff;
+      }
+
+      .status {
+        margin-top: 4px;
+        font-size: 12px;
+        color: #444;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <div class="titlebar">
+        <span id="titleText">Compass Rose - Live Mode</span>
+        <span style="float: right; font-weight: 700;">
+          <a href="/" style="color: inherit; text-decoration: underline; margin-right: 10px;">Monitor</a>
+          <a href="/plotter" style="color: inherit; text-decoration: underline;">Graficador</a>
+        </span>
+      </div>
+
+      <div class="layout">
+        <div class="left">
+          <div>
+            <div class="stats">
+              <div class="line"><span>Pressure:</span><span id="pressure">—</span></div>
+            </div>
+
+            <div class="pill">
+              <div class="name">SHK1</div>
+              <div class="val" id="shk1">—</div>
+              <div class="time" id="shk1t">—</div>
+            </div>
+
+            <div class="pill" style="margin-top: 12px;">
+              <div class="name">VIB1</div>
+              <div class="val" id="vib1">—</div>
+              <div class="time" id="vib1t">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="center">
+          <div class="compass-wrap">
+            <canvas id="compass" width="700" height="700"></canvas>
+            <div class="center-overlay">
+              <div class="center-box">
+                <div class="center-label" id="centerLabel">gTFA</div>
+                <div class="center-value" id="centerValue">—</div>
+                <div class="center-counter" id="centerCounter">—</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bottom">
+            <div class="bigbox inc">
+              <div class="label">Inc</div>
+              <div class="bigval" id="inc">—</div>
+            </div>
+            <div></div>
+            <div class="bigbox azm">
+              <div class="label">Azm</div>
+              <div class="bigval" id="azm">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="right">
+          <div>
+            <div class="top-right">
+              <div>Pump Down Time <span id="pdt">—</span></div>
+              <div>Up Time <span id="upt">—</span></div>
+              <div class="pump" id="pump">—</div>
+              <div class="status">Socket: <span id="status">Conectando…</span></div>
+            </div>
+
+            <div class="pill" style="margin-top: 12px;">
+              <div class="name">Grav</div>
+              <div class="val" id="grav">—</div>
+              <div class="time" id="gravt">—</div>
+            </div>
+
+            <div class="pill">
+              <div class="name">MagF</div>
+              <div class="val" id="magf">—</div>
+              <div class="time" id="magft">—</div>
+            </div>
+
+            <div class="pill">
+              <div class="name">DipA</div>
+              <div class="val" id="dipa">—</div>
+              <div class="time" id="dipat">—</div>
+            </div>
+
+            <div class="pill">
+              <div class="name">Temp</div>
+              <div class="val" id="temp">—</div>
+              <div class="time" id="tempt">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+      const statusEl = document.getElementById('status');
+
+      const titleEl = document.getElementById('titleText');
+      const pressureEl = document.getElementById('pressure');
+      const pdtEl = document.getElementById('pdt');
+      const uptEl = document.getElementById('upt');
+      const pumpEl = document.getElementById('pump');
+
+      const shk1El = document.getElementById('shk1');
+      const vib1El = document.getElementById('vib1');
+      const gravEl = document.getElementById('grav');
+      const magfEl = document.getElementById('magf');
+      const dipaEl = document.getElementById('dipa');
+      const tempEl = document.getElementById('temp');
+      const incEl = document.getElementById('inc');
+      const azmEl = document.getElementById('azm');
+
+      const centerLabelEl = document.getElementById('centerLabel');
+      const centerValueEl = document.getElementById('centerValue');
+      const centerCounterEl = document.getElementById('centerCounter');
+
+      const canvas = document.getElementById('compass');
+      const ctx = canvas.getContext('2d');
+      let currentAzm = 0;
+      let tfaHistory = [];
+      let lastTfaTick = null;
+
+      const socket = io();
+
+      function pad2(n) {
+        return String(n).padStart(2, '0');
+      }
+
+      function fmtHMS(totalSeconds) {
+        const s = Math.max(0, Math.floor(totalSeconds || 0));
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        return `${h}:${pad2(m)}:${pad2(sec)}`;
+      }
+
+      function fmtMS(totalSeconds) {
+        const s = Math.max(0, Math.floor(totalSeconds || 0));
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${m}:${pad2(sec)}`;
+      }
+
+      function parseBoolish(v) {
+        if (v === true) return true;
+        if (v === false) return false;
+        if (typeof v === 'number') {
+          if (v === 1 || v === 1.0) return true;
+          if (v === 0 || v === 0.0) return false;
+          if (Number.isFinite(v) && Math.abs(v - 1) < 1e-9) return true;
+          if (Number.isFinite(v) && Math.abs(v - 0) < 1e-9) return false;
+        }
+        if (v === 1 || v === '1') return true;
+        if (v === 0 || v === '0') return false;
+        if (typeof v === 'string') {
+          const s = v.trim().toLowerCase();
+          if (s === 'true') return true;
+          if (s === 'false') return false;
+          const n = Number(s);
+          if (Number.isFinite(n) && Math.abs(n - 1) < 1e-9) return true;
+          if (Number.isFinite(n) && Math.abs(n - 0) < 1e-9) return false;
+        }
+        return null;
+      }
+
+      function setBoolPill(valueEl, v) {
+        const b = parseBoolish(v);
+        const pill = valueEl ? valueEl.closest('.pill') : null;
+        if (!pill) return;
+
+        pill.classList.toggle('bool-true', b === true);
+        if (b === true) {
+          valueEl.textContent = 'True';
+        } else if (b === false) {
+          valueEl.textContent = 'False';
+        } else {
+          setText(valueEl, v);
+        }
+      }
+
+      function drawCompass() {
+        const w = canvas.width;
+        const h = canvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const r = Math.min(w, h) * 0.44;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Outer colored arcs
+        ctx.lineWidth = 26;
+        ctx.lineCap = 'butt';
+
+        // Blue arc (right side)
+        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--blue').trim();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 18, (-70 * Math.PI) / 180, (70 * Math.PI) / 180, false);
+        ctx.stroke();
+
+        // Maroon arc (left side)
+        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--maroon').trim();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 18, (110 * Math.PI) / 180, (250 * Math.PI) / 180, false);
+        ctx.stroke();
+
+        // Rings
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#444';
+        for (let i = 1; i <= 8; i++) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, (r * i) / 8, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Crosshair
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(cx - r, cy);
+        ctx.lineTo(cx + r, cy);
+        ctx.moveTo(cx, cy - r);
+        ctx.lineTo(cx, cy + r);
+        ctx.stroke();
+
+        // Angle labels (0/90/180/270)
+        ctx.fillStyle = '#1f3bdc';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('0', cx, cy - r - 10);
+        ctx.fillText('90', cx + r + 18, cy);
+        ctx.fillText('180', cx, cy + r + 14);
+        ctx.fillText('270', cx - r - 18, cy);
+
+        function ringRadius(i) {
+          return (r * i) / 8;
+        }
+
+        function bandCenter(i) {
+          return (ringRadius(i) + ringRadius(i - 1)) / 2;
+        }
+
+        function drawTfaMarker(value, bandIndex) {
+          if (value === null || value === undefined || Number.isNaN(Number(value))) return;
+          const deg = ((Number(value) % 360) + 360) % 360;
+          const rad = (deg * Math.PI) / 180;
+
+          const spacing = r / 8;
+          const padding = 2;
+          const markerRadius = (spacing / 2) - padding;
+          const centerR = bandCenter(bandIndex);
+
+          const mx = cx + Math.sin(rad) * centerR;
+          const my = cy - Math.cos(rad) * centerR;
+
+          ctx.fillStyle = '#000';
+          ctx.beginPath();
+          ctx.arc(mx, my, markerRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 5 puntos: el más nuevo en el anillo exterior (8) y los anteriores hacia el centro (7,6,5,4)
+        for (let i = 0; i < Math.min(5, tfaHistory.length); i++) {
+          const band = 8 - i;
+          if (band < 4) break;
+          drawTfaMarker(tfaHistory[i], band);
+        }
+      }
+
+      function setText(el, v) {
+        el.textContent = v === null || v === undefined ? '—' : String(v);
+      }
+
+      socket.on('connect', () => {
+        statusEl.textContent = 'Conectado';
+      });
+
+      socket.on('disconnect', () => {
+        statusEl.textContent = 'Desconectado';
+      });
+
+      socket.on('decoder_state', (s) => {
+        if (!s) return;
+
+        titleEl.textContent = `${s.title || 'Compass Rose'} - Radio Network ID: ${s.network_id || '—'}`;
+
+        setText(pressureEl, (s.pressure_psi !== undefined && s.pressure_psi !== null) ? `${s.pressure_psi} PSI` : null);
+
+        setText(pdtEl, fmtHMS(s.pump_down_seconds));
+        setText(uptEl, fmtHMS(s.uptime_seconds));
+
+        pumpEl.textContent = s.pump_on ? 'Pump On' : 'Pump Off';
+        pumpEl.classList.toggle('pump-off', !s.pump_on);
+
+        setText(shk1El, s.shk1);
+        setText(vib1El, s.vib1);
+        setBoolPill(gravEl, s.grav);
+        setText(magfEl, s.magf);
+        setBoolPill(dipaEl, s.dipa);
+        setBoolPill(tempEl, s.temp);
+
+        setText(incEl, s.inc);
+        setText(azmEl, s.azm);
+
+        centerLabelEl.textContent = s.center_label || 'gTFA';
+        setText(centerValueEl, s.center_value);
+        centerCounterEl.textContent = fmtMS(s.center_counter_seconds);
+
+        if (s.tfa_tick !== undefined && s.tfa_tick !== null) {
+          const tick = Number(s.tfa_tick);
+          if (!Number.isNaN(tick) && (lastTfaTick === null || tick !== lastTfaTick)) {
+            lastTfaTick = tick;
+            if (s.center_value !== undefined && s.center_value !== null && s.center_value !== '') {
+              const newTfa = Number(s.center_value);
+              if (Number.isFinite(newTfa)) {
+                tfaHistory.unshift(newTfa);
+                tfaHistory = tfaHistory.slice(0, 5);
+              }
+            }
+          }
+        }
+
+        if (s.azm !== undefined && s.azm !== null) {
+          currentAzm = Number(s.azm) || 0;
+        }
+
+        drawCompass();
+      });
+
+      // Initial draw
+      drawCompass();
+    </script>
+  </body>
+</html>

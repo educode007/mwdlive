@@ -1,0 +1,1481 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Graficador</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --bg: #e9e9e9;
+        --panel: #efefef;
+        --text: #202020;
+        --muted: #5b5b5b;
+        --blue: #2a49ff;
+        --maroon: #7b0020;
+        --green: #c9f0c9;
+        --green-border: #7bc97b;
+        --border: #c8c8c8;
+      }
+
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .frame {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      .titlebar {
+        padding: 6px 10px;
+        font-size: 14px;
+        font-weight: 700;
+        background: #dcdcdc;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .titlebar a {
+        color: inherit;
+        text-decoration: underline;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 10px;
+        height: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px;
+        box-sizing: border-box;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        gap: 10px;
+        height: 100%;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      textarea {
+        width: 100%;
+        height: 180px;
+        resize: vertical;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px;
+        box-sizing: border-box;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        background: #fff;
+        color: #111;
+      }
+
+      .btnbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 10px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      button.primary {
+        background: var(--green);
+        border-color: var(--green-border);
+      }
+
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.3;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+
+      .tab {
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 10px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .tab.active {
+        background: var(--green);
+        border-color: var(--green-border);
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 10px;
+        height: 100%;
+      }
+
+      .view {
+        display: none;
+        height: 100%;
+      }
+
+      .view.active {
+        display: block;
+      }
+
+      .plot {
+        width: 100%;
+        height: 100%;
+        min-height: 520px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      thead th {
+        position: sticky;
+        top: 0;
+        background: #f5f5f5;
+        z-index: 1;
+        text-align: right;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      tbody td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #eee;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      tbody tr:hover {
+        background: #f8f8f8;
+      }
+
+      .table-wrap {
+        height: calc(100vh - 220px);
+        overflow: auto;
+      }
+
+      .dataset-pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #fff;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .dataset-pill.real { color: var(--maroon); }
+      .dataset-pill.proposal { color: var(--blue); }
+
+      .field {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+      }
+
+      input[type="number"] {
+        width: 110px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 6px 8px;
+        font-weight: 700;
+      }
+
+      .err {
+        color: #c01313;
+        font-weight: 700;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body data-desktop-ingest-url="{{ desktop_ingest_url|default('')|e }}" data-desktop-ingest-key="{{ desktop_ingest_key|default('')|e }}">
+    <div class="frame">
+      <div class="titlebar">
+        <span>Graficador</span>
+        <span style="float: right; font-weight: 700;">
+          <a href="/" style="margin-right: 10px;">Monitor</a>
+          <a href="/plotter">Graficador</a>
+        </span>
+      </div>
+
+      <div class="layout">
+        <div class="controls">
+          <div class="panel">
+            <div class="btnbar" style="justify-content: space-between;">
+              <div>
+                <span class="dataset-pill real">Real</span>
+                <span class="dataset-pill proposal" style="margin-left: 8px;">Proposal</span>
+              </div>
+              <div class="field">
+                <span>VSP (deg)</span>
+                <input id="vsp" type="number" step="0.1" value="0" />
+              </div>
+            </div>
+            <div class="hint" style="margin-top: 8px;">
+              Pegá 3 columnas sin encabezado: <b>MD(m) INC(deg) AZM(deg)</b>. Acepta tab/espacios. Decimal con coma (ej: 380,37).
+            </div>
+            <div id="error" class="err" style="margin-top: 8px;"></div>
+          </div>
+
+          <div class="row">
+            <div class="panel">
+              <div style="font-weight: 800; margin-bottom: 6px;">Pegar Real</div>
+              <textarea id="realInput" placeholder="0,00\t0,00\t0,00\n380,37\t1,00\t280,70\n..."></textarea>
+              <div class="btnbar" style="margin-top: 8px;">
+                <button class="primary" id="loadReal">Cargar Real</button>
+                <button id="clearReal">Limpiar</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div style="font-weight: 800; margin-bottom: 6px;">Pegar Proposal</div>
+              <textarea id="proposalInput" placeholder="0,00\t0,00\t0,00\n..."></textarea>
+              <div class="btnbar" style="margin-top: 8px;">
+                <button class="primary" id="loadProposal">Cargar Proposal</button>
+                <button id="clearProposal">Limpiar</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="btnbar">
+              <button id="saveLocal">Guardar en navegador</button>
+              <button id="loadLocal">Cargar del navegador</button>
+              <button id="resetAll">Reset</button>
+            </div>
+            <div class="hint" style="margin-top: 8px;">
+              Los plots se actualizan al cargar datasets. TVD se grafica hacia abajo.
+            </div>
+          </div>
+        </div>
+
+        <div class="workspace">
+          <div class="panel">
+            <div class="tabs">
+              <div class="tab active" data-view="surveys">Surveys</div>
+              <div class="tab" data-view="top">Top</div>
+              <div class="tab" data-view="vs">VS</div>
+            </div>
+            <div class="btnbar" style="margin-bottom: 6px;">
+              <button id="measureToggle">Medir</button>
+              <button id="clearMeasures">Borrar medidas</button>
+              <span id="measureHint" class="hint" style="margin-left: 6px;"></span>
+            </div>
+            <div class="hint">
+              Seleccioná una fila para resaltar el punto en los plots (cuando estén visibles).
+            </div>
+          </div>
+
+          <div class="panel" style="padding: 0; overflow: hidden;">
+            <div id="view-surveys" class="view active">
+              <div class="btnbar" style="padding: 10px; border-bottom: 1px solid var(--border);">
+                <button id="showReal" class="primary">Tabla Real</button>
+                <button id="showProposal">Tabla Proposal</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>No</th>
+                      <th>MD</th>
+                      <th>Inc</th>
+                      <th>Azm</th>
+                      <th>NS</th>
+                      <th>EW</th>
+                      <th>TVD</th>
+                      <th>VS</th>
+                      <th>DLS</th>
+                    </tr>
+                  </thead>
+                  <tbody id="surveysBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="view-top" class="view"><div id="plotTop" class="plot"></div></div>
+            <div id="view-vs" class="view"><div id="plotVS" class="plot"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const realInputEl = document.getElementById('realInput');
+      const proposalInputEl = document.getElementById('proposalInput');
+      const errorEl = document.getElementById('error');
+      const vspEl = document.getElementById('vsp');
+
+      const surveysBodyEl = document.getElementById('surveysBody');
+      const showRealBtn = document.getElementById('showReal');
+      const showProposalBtn = document.getElementById('showProposal');
+
+      const plotTopEl = document.getElementById('plotTop');
+      const plotVSEl = document.getElementById('plotVS');
+
+      const measureToggleBtn = document.getElementById('measureToggle');
+      const clearMeasuresBtn = document.getElementById('clearMeasures');
+      const measureHintEl = document.getElementById('measureHint');
+
+      let real = null;
+      let proposal = null;
+      let activeDataset = 'real';
+      let selectedIndex = null;
+
+      let measureEnabled = false;
+      let measurePendingTop = null;
+      let measurePendingVS = null;
+      let topMeasures = [];
+      let vsMeasures = [];
+
+      let rmbPanning = false;
+
+      window.addEventListener('error', (ev) => {
+        try {
+          const msg = ev && ev.message ? ev.message : 'Unknown error';
+          setError(`JS error: ${msg}`);
+        } catch (_) {
+        }
+      });
+      window.addEventListener('unhandledrejection', (ev) => {
+        try {
+          const r = ev && ev.reason ? ev.reason : 'Unknown rejection';
+          const msg = (r && r.message) ? r.message : String(r);
+          setError(`JS promise error: ${msg}`);
+        } catch (_) {
+        }
+      });
+
+      const STORAGE_KEY = 'mwd_plotter_state_v1';
+
+      const DESKTOP_INGEST_URL = (document.body && document.body.dataset) ? (document.body.dataset.desktopIngestUrl || '') : '';
+      const DESKTOP_INGEST_KEY = (document.body && document.body.dataset) ? (document.body.dataset.desktopIngestKey || '') : '';
+
+      let desktopIngestSeq = 0;
+      function desktopBuildIngestPayload() {
+        const vsp = Number(vspEl.value);
+        const realText = realInputEl.value || '';
+        const proposalText = proposalInputEl.value || '';
+        let realRows = [];
+        let propRows = [];
+        try {
+          if (realText.trim()) realRows = parsePasted(realText);
+        } catch (_) {
+          realRows = [];
+        }
+        try {
+          if (proposalText.trim()) propRows = parsePasted(proposalText);
+        } catch (_) {
+          propRows = [];
+        }
+        return {
+          well_id: 'default',
+          ts: Math.floor(Date.now() / 1000),
+          source: 'desktop',
+          seq: ++desktopIngestSeq,
+          vsp: Number.isFinite(vsp) ? vsp : null,
+          surveys: {
+            real: realRows.map((r) => ({ md: r.md, inc: r.inc, azm: r.azm })),
+            proposal: propRows.map((r) => ({ md: r.md, inc: r.inc, azm: r.azm })),
+          },
+        };
+      }
+
+      function startDesktopIngestLoop() {
+        if (!DESKTOP_INGEST_URL || !DESKTOP_INGEST_KEY) return;
+        if (isViewer) return;
+
+        const url = String(DESKTOP_INGEST_URL).replace(/\/+$/, '') + '/api/ingest';
+
+        window.setInterval(() => {
+          try {
+            const payload = desktopBuildIngestPayload();
+            fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${DESKTOP_INGEST_KEY}`,
+              },
+              body: JSON.stringify(payload),
+            }).catch(() => {
+            });
+          } catch (_) {
+          }
+        }, 5000);
+      }
+
+      const urlParams = new URLSearchParams(window.location.search || '');
+      const isViewer = urlParams.get('viewer') === '1';
+
+      function saveState() {
+        if (isViewer) return;
+        try {
+          const payload = {
+            realText: realInputEl.value,
+            proposalText: proposalInputEl.value,
+            vsp: Number(vspEl.value),
+            vspUserSet: !!vspEl.dataset.userSet,
+            activeDataset,
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        } catch (_) {
+        }
+      }
+
+      function restoreState() {
+        if (isViewer) return;
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+          const payload = JSON.parse(raw);
+          realInputEl.value = payload.realText || '';
+          proposalInputEl.value = payload.proposalText || '';
+          if (payload.vsp !== undefined && payload.vsp !== null) {
+            vspEl.value = Number(payload.vsp).toFixed(2);
+          }
+          if (payload.vspUserSet) vspEl.dataset.userSet = '1';
+          if (payload.activeDataset === 'proposal' || payload.activeDataset === 'real') {
+            activeDataset = payload.activeDataset;
+          }
+        } catch (_) {
+        }
+      }
+
+      let saveTimer = null;
+      function scheduleSave() {
+        if (saveTimer) window.clearTimeout(saveTimer);
+        saveTimer = window.setTimeout(() => {
+          saveTimer = null;
+          saveState();
+        }, 200);
+      }
+
+      function setError(msg) {
+        errorEl.textContent = msg || '';
+      }
+
+      function fmtDist(d) {
+        if (!Number.isFinite(d)) return '';
+        return `${d.toFixed(2)} m`;
+      }
+
+      function updateMeasureHint() {
+        if (!measureEnabled) {
+          measureHintEl.textContent = '';
+          measurePendingTop = null;
+          measurePendingVS = null;
+          return;
+        }
+        measureHintEl.textContent = 'Medir: click en Real y luego click en Proposal (Top o VS)';
+      }
+
+      function clearAllMeasures() {
+        topMeasures = [];
+        vsMeasures = [];
+        measurePendingTop = null;
+        measurePendingVS = null;
+        renderPlots();
+      }
+
+      function datasetFromTraceName(name) {
+        if (!name) return null;
+        const n = String(name).toLowerCase();
+        if (n.startsWith('real')) return 'real';
+        if (n.startsWith('proposal')) return 'proposal';
+        return null;
+      }
+
+      function makePointMeasure(a, b) {
+        const d = Math.hypot(b.x - a.x, b.y - a.y);
+        return {
+          a,
+          b,
+          label: `d=${fmtDist(d)}`,
+        };
+      }
+
+      function snapPointToPolyline(poly, p) {
+        if (!poly || poly.length < 2) return null;
+        let best = null;
+        for (let i = 1; i < poly.length; i++) {
+          const a = poly[i - 1];
+          const b = poly[i];
+          const abx = b.x - a.x;
+          const aby = b.y - a.y;
+          const apx = p.x - a.x;
+          const apy = p.y - a.y;
+          const ab2 = (abx * abx) + (aby * aby);
+          let t = 0;
+          if (ab2 > 1e-12) t = ((apx * abx) + (apy * aby)) / ab2;
+          t = Math.max(0, Math.min(1, t));
+          const qx = a.x + (abx * t);
+          const qy = a.y + (aby * t);
+          const dx = p.x - qx;
+          const dy = p.y - qy;
+          const d2 = (dx * dx) + (dy * dy);
+          if (!best || d2 < best.d2) {
+            best = { x: qx, y: qy, d2 };
+          }
+        }
+        return best ? { x: best.x, y: best.y, d2: best.d2 } : null;
+      }
+
+      function snapMaxD2ForPlot(plotEl) {
+        try {
+          const fl = plotEl && plotEl._fullLayout ? plotEl._fullLayout : null;
+          const xr = (fl && fl.xaxis && Array.isArray(fl.xaxis.range)) ? fl.xaxis.range : (plotEl.layout && plotEl.layout.xaxis && Array.isArray(plotEl.layout.xaxis.range) ? plotEl.layout.xaxis.range : null);
+          const yr = (fl && fl.yaxis && Array.isArray(fl.yaxis.range)) ? fl.yaxis.range : (plotEl.layout && plotEl.layout.yaxis && Array.isArray(plotEl.layout.yaxis.range) ? plotEl.layout.yaxis.range : null);
+          if (!xr || !yr) return Number.POSITIVE_INFINITY;
+          const x0 = Number(xr[0]);
+          const x1 = Number(xr[1]);
+          const y0 = Number(yr[0]);
+          const y1 = Number(yr[1]);
+          if (!Number.isFinite(x0) || !Number.isFinite(x1) || !Number.isFinite(y0) || !Number.isFinite(y1)) return Number.POSITIVE_INFINITY;
+          const dx = x1 - x0;
+          const dy = y1 - y0;
+          const diagData = Math.max(1e-6, Math.sqrt((dx * dx) + (dy * dy)));
+          const xLen = (fl && fl.xaxis && Number.isFinite(fl.xaxis._length)) ? Number(fl.xaxis._length) : null;
+          const yLen = (fl && fl.yaxis && Number.isFinite(fl.yaxis._length)) ? Number(fl.yaxis._length) : null;
+          const diagPx = (xLen && yLen) ? Math.max(1e-6, Math.sqrt((xLen * xLen) + (yLen * yLen))) : null;
+          const pxTol = 18;
+          const tolData = diagPx ? (pxTol * (diagData / diagPx)) : (diagData * 0.08);
+          return tolData * tolData;
+        } catch (_) {
+          return Number.POSITIVE_INFINITY;
+        }
+      }
+
+      function getPolylinesForView(view) {
+        const vspDeg = Number(vspEl.value);
+        let realPoly = null;
+        let propPoly = null;
+        if (view === 'top') {
+          if (real && real.length) realPoly = real.map((r) => ({ x: r.ew, y: r.ns }));
+          if (proposal && proposal.length) propPoly = proposal.map((r) => ({ x: r.ew, y: r.ns }));
+        } else if (view === 'vs') {
+          if (real && real.length) {
+            const rr = computeVS(real, vspDeg);
+            realPoly = rr.map((r) => ({ x: r.vs, y: r.tvd }));
+          }
+          if (proposal && proposal.length) {
+            const pp = computeVS(proposal, vspDeg);
+            propPoly = pp.map((r) => ({ x: r.vs, y: r.tvd }));
+          }
+        }
+        return { realPoly, propPoly };
+      }
+
+      function eventToDataXY(gd, ev) {
+        const rect = gd.getBoundingClientRect();
+        const full = gd._fullLayout;
+        if (!full || !full.xaxis || !full.yaxis) return null;
+        const xaxis = full.xaxis;
+        const yaxis = full.yaxis;
+
+        const px = ev.clientX - rect.left;
+        const py = ev.clientY - rect.top;
+
+        const xpx = px - full.margin.l;
+        const ypx = py - full.margin.t;
+        if (xpx < 0 || ypx < 0 || xpx > xaxis._length || ypx > yaxis._length) return null;
+
+        const x = xaxis.p2l(xpx);
+        const y = yaxis.p2l(ypx);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return { x, y };
+      }
+
+      function currentRanges(plotEl) {
+        try {
+          const lx = (plotEl && plotEl.layout && plotEl.layout.xaxis && plotEl.layout.xaxis.range) ? plotEl.layout.xaxis.range : null;
+          const ly = (plotEl && plotEl.layout && plotEl.layout.yaxis && plotEl.layout.yaxis.range) ? plotEl.layout.yaxis.range : null;
+          if (Array.isArray(lx) && lx.length === 2 && Array.isArray(ly) && ly.length === 2) {
+            return { x: lx.slice(), y: ly.slice() };
+          }
+        } catch (_) {
+        }
+        try {
+          const fx = (plotEl && plotEl._fullLayout && plotEl._fullLayout.xaxis && plotEl._fullLayout.xaxis.range) ? plotEl._fullLayout.xaxis.range : null;
+          const fy = (plotEl && plotEl._fullLayout && plotEl._fullLayout.yaxis && plotEl._fullLayout.yaxis.range) ? plotEl._fullLayout.yaxis.range : null;
+          if (Array.isArray(fx) && fx.length === 2 && Array.isArray(fy) && fy.length === 2) {
+            return { x: fx.slice(), y: fy.slice() };
+          }
+        } catch (_) {
+        }
+        return { x: null, y: null };
+      }
+
+      function deg2rad(d) {
+        return (d * Math.PI) / 180;
+      }
+
+      function normalizeAzm(a) {
+        let v = a % 360;
+        if (v < 0) v += 360;
+        return v;
+      }
+
+      function parsePasted(text) {
+        const lines = (text || '').split(/\r?\n/);
+        const rows = [];
+        for (const raw of lines) {
+          const line = raw.trim();
+          if (!line) continue;
+          const parts = line.split(/\s+/);
+          if (parts.length < 3) {
+            throw new Error(`Línea inválida: "${raw}"`);
+          }
+          const md = Number(parts[0].replace(',', '.'));
+          const inc = Number(parts[1].replace(',', '.'));
+          const azm = Number(parts[2].replace(',', '.'));
+          if (!Number.isFinite(md) || !Number.isFinite(inc) || !Number.isFinite(azm)) {
+            throw new Error(`No numérico: "${raw}"`);
+          }
+          rows.push({ md, inc, azm: normalizeAzm(azm) });
+        }
+        if (rows.length < 2) {
+          throw new Error('Se requieren al menos 2 surveys.');
+        }
+        for (let i = 1; i < rows.length; i++) {
+          if (rows[i].md < rows[i - 1].md) {
+            throw new Error('MD debe ser creciente.');
+          }
+        }
+        return rows;
+      }
+
+      function normalizeSurveyArray(arr) {
+        if (!Array.isArray(arr)) return [];
+        const out = [];
+        for (const r of arr) {
+          if (!r) continue;
+          const md = Number(r.md);
+          const inc = Number(r.inc);
+          const azm = Number(r.azm);
+          if (!Number.isFinite(md) || !Number.isFinite(inc) || !Number.isFinite(azm)) continue;
+          out.push({ md, inc, azm });
+        }
+        out.sort((a, b) => a.md - b.md);
+        return out;
+      }
+
+      function applyIngestState(payload) {
+        try {
+          if (!payload || typeof payload !== 'object') return;
+
+          if (payload.vsp !== undefined && payload.vsp !== null && Number.isFinite(Number(payload.vsp))) {
+            vspEl.value = Number(payload.vsp).toFixed(2);
+          }
+
+          const surveys = payload.surveys;
+          if (surveys && typeof surveys === 'object') {
+            if (surveys.real) {
+              real = computeMinimumCurvature(normalizeSurveyArray(surveys.real));
+              if (!isViewer) {
+                realInputEl.value = (surveys.real_text !== undefined) ? String(surveys.real_text) : realInputEl.value;
+              }
+            }
+            if (surveys.proposal) {
+              proposal = computeMinimumCurvature(normalizeSurveyArray(surveys.proposal));
+              if (!isViewer) {
+                proposalInputEl.value = (surveys.proposal_text !== undefined) ? String(surveys.proposal_text) : proposalInputEl.value;
+              }
+            }
+          }
+
+          recomputeVSPIfAuto();
+          renderTable();
+          renderPlots();
+        } catch (e) {
+          setError(`viewer update error: ${String(e && e.message ? e.message : e)}`);
+        }
+      }
+
+      function computeMinimumCurvature(surveys) {
+        const out = [];
+        let ns = 0;
+        let ew = 0;
+        let tvd = 0;
+        out.push({ ...surveys[0], ns, ew, tvd, dls: 0 });
+
+        for (let i = 1; i < surveys.length; i++) {
+          const s1 = surveys[i - 1];
+          const s2 = surveys[i];
+
+          const md1 = s1.md;
+          const md2 = s2.md;
+          const dmd = md2 - md1;
+
+          const inc1 = deg2rad(s1.inc);
+          const inc2 = deg2rad(s2.inc);
+          const az1 = deg2rad(s1.azm);
+          const az2 = deg2rad(s2.azm);
+
+          const cosDL = (Math.cos(inc1) * Math.cos(inc2)) + (Math.sin(inc1) * Math.sin(inc2) * Math.cos(az2 - az1));
+          const dl = Math.acos(Math.max(-1, Math.min(1, cosDL)));
+
+          const rf = dl < 1e-12 ? 1 : (2 / dl) * Math.tan(dl / 2);
+
+          const dN = (dmd / 2) * (Math.sin(inc1) * Math.cos(az1) + Math.sin(inc2) * Math.cos(az2)) * rf;
+          const dE = (dmd / 2) * (Math.sin(inc1) * Math.sin(az1) + Math.sin(inc2) * Math.sin(az2)) * rf;
+          const dV = (dmd / 2) * (Math.cos(inc1) + Math.cos(inc2)) * rf;
+
+          ns += dN;
+          ew += dE;
+          tvd += dV;
+
+          const dls = dl < 1e-12 ? 0 : (dl * 180 / Math.PI) / dmd * 30;
+
+          out.push({ ...s2, ns, ew, tvd, dls });
+        }
+
+        return out;
+      }
+
+      function computeVS(rows, vspDeg) {
+        const a = deg2rad(vspDeg);
+        const ca = Math.cos(a);
+        const sa = Math.sin(a);
+        return rows.map((r) => ({ ...r, vs: (r.ns * ca) + (r.ew * sa) }));
+      }
+
+      function defaultVSP() {
+        if (proposal && proposal.length) return proposal[proposal.length - 1].azm;
+        if (real && real.length) return real[real.length - 1].azm;
+        return 0;
+      }
+
+      function setActiveDataset(which) {
+        activeDataset = which;
+        selectedIndex = null;
+        showRealBtn.classList.toggle('primary', which === 'real');
+        showProposalBtn.classList.toggle('primary', which === 'proposal');
+        renderTable();
+        renderPlots();
+        saveState();
+      }
+
+      function getDataset(which) {
+        return which === 'proposal' ? proposal : real;
+      }
+
+      function renderTable() {
+        const ds = getDataset(activeDataset);
+        surveysBodyEl.innerHTML = '';
+        if (!ds || !ds.length) return;
+
+        const vspDeg = Number(vspEl.value);
+        const withVS = computeVS(ds, vspDeg);
+
+        for (let i = 0; i < withVS.length; i++) {
+          const r = withVS[i];
+          const tr = document.createElement('tr');
+          if (selectedIndex === i) tr.style.background = '#fff5d6';
+          tr.addEventListener('click', () => {
+            selectedIndex = i;
+            renderTable();
+            renderPlots();
+          });
+
+          function td(v) {
+            const el = document.createElement('td');
+            el.textContent = v;
+            return el;
+          }
+
+          tr.appendChild(td(String(i)));
+          tr.appendChild(td(r.md.toFixed(2)));
+          tr.appendChild(td(r.inc.toFixed(2)));
+          tr.appendChild(td(r.azm.toFixed(2)));
+          tr.appendChild(td(r.ns.toFixed(2)));
+          tr.appendChild(td(r.ew.toFixed(2)));
+          tr.appendChild(td(r.tvd.toFixed(2)));
+          tr.appendChild(td(r.vs.toFixed(2)));
+          tr.appendChild(td(r.dls.toFixed(2)));
+
+          surveysBodyEl.appendChild(tr);
+        }
+      }
+
+      function makeHover(rows, vspDeg) {
+        const withVS = computeVS(rows, vspDeg);
+        return withVS.map((r) => {
+          return `MD=${r.md.toFixed(2)} m<br>Inc=${r.inc.toFixed(2)}°<br>Azm(G)=${r.azm.toFixed(2)}°<br>NS=${r.ns.toFixed(2)} m<br>EW=${r.ew.toFixed(2)} m<br>TVD=${r.tvd.toFixed(2)} m<br>VS=${r.vs.toFixed(2)} m<br>DLS=${r.dls.toFixed(2)}`;
+        });
+      }
+
+      function renderPlots() {
+        try {
+        const vspDeg = Number(vspEl.value);
+
+        const topKeep = currentRanges(plotTopEl);
+        const vsKeep = currentRanges(plotVSEl);
+
+        const normalizeRange = (rng) => {
+          if (!Array.isArray(rng) || rng.length !== 2) return null;
+          const a = Number(rng[0]);
+          const b = Number(rng[1]);
+          if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+          if (a === b) return null;
+          return a <= b ? [a, b] : [b, a];
+        };
+
+        const extent = (vals) => {
+          let min = Number.POSITIVE_INFINITY;
+          let max = Number.NEGATIVE_INFINITY;
+          for (const v of vals) {
+            const n = Number(v);
+            if (!Number.isFinite(n)) continue;
+            if (n < min) min = n;
+            if (n > max) max = n;
+          }
+          if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) return null;
+          return { min, max };
+        };
+
+        const collectVals = (traces, key) => {
+          const out = [];
+          for (const t of traces) {
+            if (!t) continue;
+            const arr = t[key];
+            if (!Array.isArray(arr)) continue;
+            for (const v of arr) out.push(v);
+          }
+          return out;
+        };
+
+        const paddedRange = (min, max, padFrac = 0.08) => {
+          const span = Math.max(1e-6, max - min);
+          const pad = span * padFrac;
+          return [min - pad, max + pad];
+        };
+
+        const normalizeReversedRange = (rng) => {
+          if (!Array.isArray(rng) || rng.length !== 2) return null;
+          const a = Number(rng[0]);
+          const b = Number(rng[1]);
+          if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+          return a >= b ? [a, b] : [b, a];
+        };
+
+        const tracesTop = [];
+        const tracesVS = [];
+
+        function addDatasetTraces(rows, name, color) {
+          if (!rows || !rows.length) return;
+
+          const hover = makeHover(rows, vspDeg);
+          const vsRows = computeVS(rows, vspDeg);
+
+          tracesTop.push({
+            type: 'scatter',
+            mode: 'lines+markers',
+            name,
+            x: rows.map((r) => r.ew),
+            y: rows.map((r) => r.ns),
+            text: hover,
+            hoverinfo: 'text',
+            line: { color, width: 3.2 },
+            marker: { color, size: 6 },
+          });
+
+          tracesVS.push({
+            type: 'scatter',
+            mode: 'lines+markers',
+            name,
+            x: vsRows.map((r) => r.vs),
+            y: vsRows.map((r) => r.tvd),
+            text: hover,
+            hoverinfo: 'text',
+            line: { color, width: 3.2 },
+            marker: { color, size: 6 },
+          });
+
+          if (selectedIndex !== null && selectedIndex !== undefined && rows[selectedIndex]) {
+            const r = rows[selectedIndex];
+            const selHover = makeHover(rows, vspDeg)[selectedIndex];
+            const selVS = computeVS(rows, vspDeg)[selectedIndex];
+
+            tracesTop.push({
+              type: 'scatter',
+              mode: 'markers',
+              name: `${name} (sel)`,
+              x: [r.ew],
+              y: [r.ns],
+              text: [selHover],
+              hoverinfo: 'text',
+              marker: { color: '#ff9900', size: 10, line: { color: '#000', width: 1 } },
+              showlegend: false,
+            });
+
+            tracesVS.push({
+              type: 'scatter',
+              mode: 'markers',
+              name: `${name} (sel)`,
+              x: [selVS.vs],
+              y: [r.tvd],
+              text: [selHover],
+              hoverinfo: 'text',
+              marker: { color: '#ff9900', size: 10, line: { color: '#000', width: 1 } },
+              showlegend: false,
+            });
+          }
+        }
+
+        addDatasetTraces(real, 'Real', '#c01313');
+        addDatasetTraces(proposal, 'Proposal', '#2a49ff');
+
+        for (const m of topMeasures) {
+          if (!m || !m.a || !m.b) continue;
+          if (!Number.isFinite(m.a.x) || !Number.isFinite(m.a.y) || !Number.isFinite(m.b.x) || !Number.isFinite(m.b.y)) continue;
+          tracesTop.push({
+            type: 'scatter',
+            mode: 'lines+markers',
+            x: [m.a.x, m.b.x],
+            y: [m.a.y, m.b.y],
+            line: { color: '#ff9900', width: 3 },
+            marker: { color: '#ff9900', size: 7 },
+            hoverinfo: 'skip',
+            showlegend: false,
+          });
+          tracesTop.push({
+            type: 'scatter',
+            mode: 'text',
+            x: [(m.a.x + m.b.x) / 2],
+            y: [(m.a.y + m.b.y) / 2],
+            text: [m.label],
+            textposition: 'top center',
+            hoverinfo: 'skip',
+            showlegend: false,
+          });
+        }
+
+        for (const m of vsMeasures) {
+          if (!m || !m.a || !m.b) continue;
+          if (!Number.isFinite(m.a.x) || !Number.isFinite(m.a.y) || !Number.isFinite(m.b.x) || !Number.isFinite(m.b.y)) continue;
+          tracesVS.push({
+            type: 'scatter',
+            mode: 'lines+markers',
+            x: [m.a.x, m.b.x],
+            y: [m.a.y, m.b.y],
+            line: { color: '#ff9900', width: 3 },
+            marker: { color: '#ff9900', size: 7 },
+            hoverinfo: 'skip',
+            showlegend: false,
+          });
+          tracesVS.push({
+            type: 'scatter',
+            mode: 'text',
+            x: [(m.a.x + m.b.x) / 2],
+            y: [(m.a.y + m.b.y) / 2],
+            text: [m.label],
+            textposition: 'top center',
+            hoverinfo: 'skip',
+            showlegend: false,
+          });
+        }
+
+
+
+        const topLayout = {
+          uirevision: 'keep',
+          margin: { l: 60, r: 20, t: 30, b: 50 },
+          title: 'Top View (EW vs NS)',
+          xaxis: { title: 'East-West (m)', zeroline: true },
+          yaxis: { title: 'North-South (m)', scaleanchor: 'x', scaleratio: 1, zeroline: true },
+          legend: { orientation: 'h' },
+        };
+
+        if (topKeep.x && topKeep.y) {
+          topLayout.xaxis.range = topKeep.x;
+          topLayout.yaxis.range = topKeep.y;
+        }
+
+        try {
+          Plotly.react(plotTopEl, tracesTop, topLayout, { responsive: true, scrollZoom: true });
+        } catch (e) {
+          setError(`Top plot error: ${String(e && e.message ? e.message : e)}`);
+        }
+
+        const vsLayout = {
+          uirevision: 'keep',
+          margin: { l: 60, r: 20, t: 30, b: 50 },
+          title: `VS View (VSP=${vspDeg.toFixed(1)}°)`,
+          xaxis: { title: 'Vertical Section (m)', zeroline: true, tick0: 0, dtick: 100 },
+          yaxis: { title: 'TVD (m)', autorange: 'reversed', scaleanchor: 'x', scaleratio: 1, tick0: 0, dtick: 100 },
+          legend: { orientation: 'h' },
+        };
+
+        if (vsKeep.x && vsKeep.y) {
+          const xr = normalizeRange(vsKeep.x);
+          if (xr) vsLayout.xaxis.range = xr;
+          const yr = normalizeReversedRange(vsKeep.y);
+          if (yr) {
+            vsLayout.yaxis.autorange = false;
+            vsLayout.yaxis.range = yr;
+          }
+        } else {
+          const xExt = extent(collectVals(tracesVS, 'x'));
+          const yExt = extent(collectVals(tracesVS, 'y'));
+          if (yExt) {
+            vsLayout.yaxis.autorange = false;
+            const yr = paddedRange(yExt.min, yExt.max);
+            vsLayout.yaxis.range = [yr[1], yr[0]];
+
+            if (xExt) {
+              vsLayout.xaxis.autorange = false;
+
+              const ySpan = Math.max(1e-6, yr[1] - yr[0]);
+              const w = Number(plotVSEl && plotVSEl.clientWidth);
+              const h = Number(plotVSEl && plotVSEl.clientHeight);
+              const aspect = (Number.isFinite(w) && Number.isFinite(h) && h > 0) ? (w / h) : 2;
+              const xSpan = ySpan * aspect;
+
+              const xMin = (xExt.min < 0) ? (xExt.min - 0.08 * (xExt.max - xExt.min)) : 0;
+              let xMax = xMin + xSpan;
+              const needMax = xExt.max + 0.08 * (xExt.max - xExt.min);
+              if (needMax > xMax) {
+                xMax = needMax;
+              }
+              vsLayout.xaxis.range = [xMin, xMax];
+            }
+          }
+        }
+
+        try {
+          Plotly.react(plotVSEl, tracesVS, vsLayout, { responsive: true, scrollZoom: true });
+        } catch (e) {
+          setError(`VS plot error: ${String(e && e.message ? e.message : e)}`);
+        }
+
+        if (!plotVSEl.dataset.plotlyErrorBound) {
+          if (plotVSEl && typeof plotVSEl.on === 'function') {
+            plotVSEl.on('plotly_error', (ev) => {
+              try {
+                const msg = (ev && ev.message) ? ev.message : 'plotly_error';
+                setError(`VS plotly_error: ${msg}`);
+              } catch (_) {
+              }
+            });
+          }
+          plotVSEl.dataset.plotlyErrorBound = '1';
+        }
+
+        bindMeasureEventsOnce();
+        bindRightMousePan(plotTopEl);
+        bindRightMousePan(plotVSEl);
+        } catch (e) {
+          setError(`renderPlots error: ${String(e && e.message ? e.message : e)}`);
+        }
+      }
+
+      function recomputeVSPIfAuto() {
+        if (!vspEl.dataset.userSet) {
+          vspEl.value = defaultVSP().toFixed(2);
+        }
+      }
+
+      vspEl.addEventListener('input', () => {
+        vspEl.dataset.userSet = '1';
+        renderTable();
+        renderPlots();
+        scheduleSave();
+      });
+
+      function loadDataset(kind, text) {
+        setError('');
+        const parsed = parsePasted(text);
+        const computed = computeMinimumCurvature(parsed);
+        if (kind === 'real') real = computed;
+        else proposal = computed;
+        recomputeVSPIfAuto();
+        renderTable();
+        renderPlots();
+        saveState();
+      }
+
+      document.getElementById('loadReal').addEventListener('click', () => {
+        try {
+          loadDataset('real', realInputEl.value);
+          setActiveDataset('real');
+        } catch (e) {
+          setError(e.message || String(e));
+        }
+      });
+
+      document.getElementById('loadProposal').addEventListener('click', () => {
+        try {
+          loadDataset('proposal', proposalInputEl.value);
+          setActiveDataset('proposal');
+        } catch (e) {
+          setError(e.message || String(e));
+        }
+      });
+
+      document.getElementById('clearReal').addEventListener('click', () => {
+        realInputEl.value = '';
+        real = null;
+        selectedIndex = null;
+        renderTable();
+        renderPlots();
+        saveState();
+      });
+
+      document.getElementById('clearProposal').addEventListener('click', () => {
+        proposalInputEl.value = '';
+        proposal = null;
+        selectedIndex = null;
+        renderTable();
+        renderPlots();
+        saveState();
+      });
+
+      showRealBtn.addEventListener('click', () => setActiveDataset('real'));
+      showProposalBtn.addEventListener('click', () => setActiveDataset('proposal'));
+
+      document.getElementById('saveLocal').addEventListener('click', () => {
+        try {
+          const payload = {
+            realText: realInputEl.value,
+            proposalText: proposalInputEl.value,
+            vsp: Number(vspEl.value),
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            ...payload,
+            vspUserSet: !!vspEl.dataset.userSet,
+            activeDataset,
+          }));
+          setError('');
+        } catch (e) {
+          setError(e.message || String(e));
+        }
+      });
+
+      document.getElementById('loadLocal').addEventListener('click', () => {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+          const payload = JSON.parse(raw);
+          realInputEl.value = payload.realText || '';
+          proposalInputEl.value = payload.proposalText || '';
+          if (payload.vsp !== undefined && payload.vsp !== null && !vspEl.dataset.userSet) {
+            vspEl.value = Number(payload.vsp).toFixed(2);
+          }
+          if (payload.vspUserSet) vspEl.dataset.userSet = '1';
+          if (payload.activeDataset === 'proposal' || payload.activeDataset === 'real') {
+            activeDataset = payload.activeDataset;
+          }
+          setError('');
+        } catch (e) {
+          setError(e.message || String(e));
+        }
+      });
+
+      document.getElementById('resetAll').addEventListener('click', () => {
+        real = null;
+        proposal = null;
+        selectedIndex = null;
+        activeDataset = 'real';
+        vspEl.dataset.userSet = '';
+        vspEl.value = '0';
+        surveysBodyEl.innerHTML = '';
+        Plotly.purge(plotTopEl);
+        Plotly.purge(plotVSEl);
+        setError('');
+        saveState();
+      });
+
+      for (const el of document.querySelectorAll('.tab')) {
+        el.addEventListener('click', () => {
+          const view = el.dataset.view;
+          document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === el));
+          document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+          document.getElementById(`view-${view}`).classList.add('active');
+          if (view === 'top') Plotly.Plots.resize(plotTopEl);
+          if (view === 'vs') Plotly.Plots.resize(plotVSEl);
+        });
+      }
+
+      (function init() {
+        if (isViewer) {
+          try {
+            realInputEl.disabled = true;
+            proposalInputEl.disabled = true;
+            document.getElementById('loadReal').disabled = true;
+            document.getElementById('clearReal').disabled = true;
+            document.getElementById('loadProposal').disabled = true;
+            document.getElementById('clearProposal').disabled = true;
+            document.getElementById('saveLocal').disabled = true;
+            document.getElementById('loadLocal').disabled = true;
+            document.getElementById('resetAll').disabled = true;
+          } catch (_) {
+          }
+
+          fetch('/api/state')
+            .then((r) => (r && r.ok) ? r.json() : null)
+            .then((data) => {
+              if (data) applyIngestState(data);
+            })
+            .catch(() => {
+            });
+
+          try {
+            if (typeof io === 'function') {
+              const socket = io();
+              socket.on('state_update', (data) => applyIngestState(data));
+            }
+          } catch (_) {
+          }
+        } else {
+          restoreState();
+        }
+
+        try {
+          if (realInputEl.value && realInputEl.value.trim()) {
+            const parsed = parsePasted(realInputEl.value);
+            real = computeMinimumCurvature(parsed);
+          }
+        } catch (_) {
+          real = null;
+        }
+
+        try {
+          if (proposalInputEl.value && proposalInputEl.value.trim()) {
+            const parsed = parsePasted(proposalInputEl.value);
+            proposal = computeMinimumCurvature(parsed);
+          }
+        } catch (_) {
+          proposal = null;
+        }
+
+        if (!vspEl.dataset.userSet) {
+          vspEl.value = defaultVSP().toFixed(2);
+        }
+
+        setActiveDataset(activeDataset);
+        saveState();
+        startDesktopIngestLoop();
+      })();
+
+      realInputEl.addEventListener('input', scheduleSave);
+      proposalInputEl.addEventListener('input', scheduleSave);
+
+      measureToggleBtn.addEventListener('click', () => {
+        measureEnabled = !measureEnabled;
+        measureToggleBtn.classList.toggle('primary', measureEnabled);
+        measurePendingTop = null;
+        measurePendingVS = null;
+        updateMeasureHint();
+      });
+
+      clearMeasuresBtn.addEventListener('click', () => {
+        clearAllMeasures();
+      });
+
+      function bindMeasureEventsOnce() {
+        if (!plotTopEl.dataset.measureBound) {
+          plotTopEl.addEventListener('click', (ev) => {
+            if (!measureEnabled) return;
+            if (rmbPanning) return;
+            const dxy = eventToDataXY(plotTopEl, ev);
+            if (!dxy) return;
+            const { realPoly, propPoly } = getPolylinesForView('top');
+            if (!realPoly || !propPoly) return;
+            const maxD2 = snapMaxD2ForPlot(plotTopEl);
+
+            if (!measurePendingTop) {
+              const snap = snapPointToPolyline(realPoly, dxy);
+              if (!snap) return;
+              if (Number.isFinite(snap.d2) && snap.d2 > maxD2) { setError('Top medir: acercate a la curva Real.'); return; }
+              measurePendingTop = { ...snap, ds: 'real' };
+              setError('Top medir: ahora click en la curva Proposal.');
+              return;
+            }
+
+            const snap = snapPointToPolyline(propPoly, dxy);
+            if (!snap) return;
+            if (Number.isFinite(snap.d2) && snap.d2 > maxD2) { setError('Top medir: acercate a la curva Proposal.'); return; }
+            const a = measurePendingTop;
+            const b = { ...snap, ds: 'proposal' };
+            measurePendingTop = null;
+            topMeasures.push(makePointMeasure(a, b));
+            setError('');
+            renderPlots();
+          });
+          plotTopEl.dataset.measureBound = '1';
+        }
+
+        if (!plotVSEl.dataset.measureBound) {
+          plotVSEl.addEventListener('click', (ev) => {
+            if (!measureEnabled) return;
+            if (rmbPanning) { setError('VS medir: soltá el botón derecho (pan activo).'); return; }
+            const dxy = eventToDataXY(plotVSEl, ev);
+            if (!dxy) { setError('VS medir: click fuera del área del gráfico.'); return; }
+            const { realPoly, propPoly } = getPolylinesForView('vs');
+            if (!realPoly || !propPoly) { setError('VS medir: faltan curvas Real/Proposal.'); return; }
+            const maxD2 = snapMaxD2ForPlot(plotVSEl);
+
+            if (!measurePendingVS) {
+              const snap = snapPointToPolyline(realPoly, dxy);
+              if (!snap) { setError('VS medir: no pude enganchar la curva Real.'); return; }
+              if (Number.isFinite(snap.d2) && snap.d2 > maxD2) { setError('VS medir: acercate a la curva Real.'); return; }
+              measurePendingVS = { ...snap, ds: 'real' };
+              setError('VS medir: ahora click en la curva Proposal.');
+              return;
+            }
+
+            const snap = snapPointToPolyline(propPoly, dxy);
+            if (!snap) { setError('VS medir: no pude enganchar la curva Proposal.'); return; }
+            if (Number.isFinite(snap.d2) && snap.d2 > maxD2) { setError('VS medir: acercate a la curva Proposal.'); return; }
+            const a = measurePendingVS;
+            const b = { ...snap, ds: 'proposal' };
+            measurePendingVS = null;
+            const m = makePointMeasure(a, b);
+            vsMeasures.push(m);
+            setError(`VS medir: OK ${m.label}`);
+            window.setTimeout(() => {
+              if (errorEl.textContent && errorEl.textContent.startsWith('VS medir: OK')) setError('');
+            }, 1200);
+            renderPlots();
+          });
+          plotVSEl.dataset.measureBound = '1';
+        }
+      }
+
+      function bindRightMousePan(plotEl) {
+        if (plotEl.dataset.rmbBound) return;
+        const full = () => plotEl._fullLayout;
+        let start = null;
+
+        const resetPanState = () => {
+          rmbPanning = false;
+          start = null;
+        };
+
+        plotEl.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+        });
+
+        plotEl.addEventListener('mousedown', (e) => {
+          if (e.button !== 2) return;
+          const fl = full();
+          if (!fl || !fl.xaxis || !fl.yaxis) return;
+          e.preventDefault();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          if (e.stopPropagation) e.stopPropagation();
+
+          const xr = Array.isArray(fl.xaxis.range) ? fl.xaxis.range : (plotEl.layout && plotEl.layout.xaxis && Array.isArray(plotEl.layout.xaxis.range) ? plotEl.layout.xaxis.range : null);
+          const yr = Array.isArray(fl.yaxis.range) ? fl.yaxis.range : (plotEl.layout && plotEl.layout.yaxis && Array.isArray(plotEl.layout.yaxis.range) ? plotEl.layout.yaxis.range : null);
+          if (!xr || !yr) return;
+
+          rmbPanning = true;
+          start = {
+            x: e.clientX,
+            y: e.clientY,
+            xRange: xr.slice(),
+            yRange: yr.slice(),
+            xLen: fl.xaxis._length,
+            yLen: fl.yaxis._length,
+          };
+        }, true);
+
+        window.addEventListener('mousemove', (e) => {
+          if (!rmbPanning || !start) return;
+          if ((e.buttons & 2) === 0) {
+            resetPanState();
+            return;
+          }
+          e.preventDefault();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          if (e.stopPropagation) e.stopPropagation();
+          const fl = full();
+          if (!fl || !fl.xaxis || !fl.yaxis) return;
+
+          const dxPx = e.clientX - start.x;
+          const dyPx = e.clientY - start.y;
+
+          const xr0 = start.xRange[0];
+          const xr1 = start.xRange[1];
+          const yr0 = start.yRange[0];
+          const yr1 = start.yRange[1];
+
+          const xSpan = xr1 - xr0;
+          const ySpan = yr1 - yr0;
+
+          const dx = -dxPx * (xSpan / start.xLen);
+          const dy = dyPx * (ySpan / start.yLen);
+
+          Plotly.relayout(plotEl, {
+            'xaxis.range': [xr0 + dx, xr1 + dx],
+            'yaxis.range': [yr0 + dy, yr1 + dy],
+          });
+        }, true);
+
+        window.addEventListener('mouseup', (e) => {
+          if (!rmbPanning) return;
+          e.preventDefault();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          if (e.stopPropagation) e.stopPropagation();
+          resetPanState();
+        }, true);
+
+        window.addEventListener('blur', resetPanState);
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) resetPanState();
+        });
+        plotEl.addEventListener('mouseleave', resetPanState);
+
+        plotEl.dataset.rmbBound = '1';
+      }
+
+      window.addEventListener('beforeunload', () => {
+        saveState();
+      });
+
+      updateMeasureHint();
+    </script>
+  </body>
+</html>
