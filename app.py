@@ -72,6 +72,13 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
 
+    render_port = os.environ.get("PORT")
+    if render_port:
+        try:
+            args.web_port = int(render_port)
+        except Exception:
+            pass
+
     if args.list_ports:
         ports = list_serial_ports()
         if not ports:
