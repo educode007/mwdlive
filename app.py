@@ -6,6 +6,7 @@ import sqlite3
 import sys
 import threading
 import time
+import traceback
 from typing import Any
 
 from flask import Flask, jsonify, render_template, request
@@ -70,6 +71,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    try:
+        # Ensure logs appear immediately on platforms like Render
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(line_buffering=True)
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(line_buffering=True)
+    except Exception:
+        pass
+
     args = build_parser().parse_args()
 
     render_port = os.environ.get("PORT")
@@ -519,9 +529,18 @@ def main() -> None:
             shutdown()
     else:
         socketio.start_background_task(decoder_background_task)
-        print(f"Servidor web iniciado en http://{args.web_host}:{args.web_port}")
+        print(f"Servidor web iniciado en http://{args.web_host}:{args.web_port}", flush=True)
         socketio.run(app, host=args.web_host, port=args.web_port)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        traceback.print_exc()
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:
+            pass
+        raise
