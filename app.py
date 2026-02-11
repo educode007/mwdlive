@@ -172,9 +172,10 @@ def _update_decoder_from_latest() -> dict[str, Any] | None:
     bat2_raw = _latest_value(bat2_code)
 
     with decoder_lock:
-        if pressure is not None and decoder_state.get("pressure_psi") != pressure:
-            decoder_state["pressure_psi"] = pressure
-            changed = True
+        if pressure is not None:
+            if decoder_state.get("pressure_psi") != pressure:
+                decoder_state["pressure_psi"] = pressure
+                changed = True
 
             is_pump_on = float(pressure) >= float(pump_threshold)
             was_pump_on = bool(decoder_state.get("pump_on"))
