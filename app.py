@@ -59,6 +59,7 @@ decoder_state: dict[str, Any] = {
     "center_value": None,
     "center_counter_seconds": 7,
     "tfa_tick": 0,
+    "reset_seq": 0,
     "render_publish_ok": None,
     "render_publish_ts": None,
     "render_publish_error": None,
@@ -183,6 +184,20 @@ def _update_decoder_from_latest() -> dict[str, Any] | None:
                 pump_down_start_time = None
                 decoder_state["pump_down_seconds"] = 0
                 decoder_state["uptime_seconds"] = 0
+                decoder_state["inc"] = None
+                decoder_state["azm"] = None
+                decoder_state["center_value"] = None
+                decoder_state["shk1"] = None
+                decoder_state["vib1"] = None
+                decoder_state["grav"] = None
+                decoder_state["magf"] = None
+                decoder_state["dipa"] = None
+                decoder_state["temp"] = None
+                decoder_state["tfa_tick"] = 0
+                try:
+                    decoder_state["reset_seq"] = int(decoder_state.get("reset_seq", 0)) + 1
+                except Exception:
+                    decoder_state["reset_seq"] = 1
                 changed = True
             elif (not is_pump_on) and was_pump_on:
                 decoder_state["pump_on"] = False
