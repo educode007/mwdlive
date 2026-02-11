@@ -1,3 +1,10 @@
+try:
+    import eventlet
+
+    eventlet.monkey_patch()
+except Exception:
+    pass
+
 import argparse
 import json
 import os
@@ -7,14 +14,9 @@ import sys
 import threading
 import time
 import traceback
+import urllib.error
+import urllib.request
 from typing import Any
-
-try:
-    import eventlet
-
-    eventlet.monkey_patch()
-except Exception:
-    pass
 
 from flask import Flask, jsonify, render_template, request
 from flask_socketio import SocketIO
@@ -57,6 +59,9 @@ decoder_state: dict[str, Any] = {
     "center_value": None,
     "center_counter_seconds": 7,
     "tfa_tick": 0,
+    "render_publish_ok": None,
+    "render_publish_ts": None,
+    "render_publish_error": None,
     "grav": None,
     "dipa": None,
     "temp": None,
@@ -64,6 +69,169 @@ decoder_state: dict[str, Any] = {
 
 ingest_lock = threading.Lock()
 last_ingest: dict[str, Any] | None = None
+
+serial_lock = threading.Lock()
+serial_reader: SerialReader | None = None
+serial_config_snapshot: dict[str, Any] = {
+    "serial_port": None,
+    "baudrate": 9600,
+    "bytesize": 8,
+    "parity": "N",
+    "stopbits": "1",
+    "timeout": 1.0,
+    "pressure_code": "0121",
+    "inc_code": "0713",
+    "azm_code": "0715",
+    "mtf_code": "0716",
+    "gtf_code": "0717",
+    "magf_code": "0732",
+    "dipa_code": "0746",
+    "temp_code": "0751",
+    "grav_code": "0747",
+    "shk1_code": "0736",
+    "vib1_code": "0737",
+    "bat2_code": "0735",
+    "pump_on_threshold": 300.0,
+    "ingest_url": "",
+    "ingest_key": "",
+    "ingest_interval_seconds": 5.0,
+}
+
+
+def _cfg_num(key: str, default: float) -> float:
+    with serial_lock:
+        v = serial_config_snapshot.get(key)
+    try:
+        out = float(v)
+        if not (out == out):
+            return default
+        return out
+    except Exception:
+        return default
+
+
+def _cfg_str(key: str, default: str) -> str:
+    with serial_lock:
+        v = serial_config_snapshot.get(key)
+    if v is None:
+        return default
+    s = str(v).strip()
+    return s if s else default
+
+
+def _cfg_float(key: str, default: float) -> float:
+    with serial_lock:
+        v = serial_config_snapshot.get(key)
+    try:
+        out = float(v)
+        if not (out == out):
+            return default
+        return out
+    except Exception:
+        return default
+
+
+def _latest_value(code: str) -> float | None:
+    with latest_lock:
+        v = latest_values.get(code)
+    if isinstance(v, (int, float)):
+        return float(v)
+    return None
+
+
+def _update_decoder_from_latest() -> dict[str, Any] | None:
+    global pump_up_start_time, pump_down_start_time
+
+    pressure_code = _cfg_str("pressure_code", "0121")
+    inc_code = _cfg_str("inc_code", "0713")
+    azm_code = _cfg_str("azm_code", "0715")
+    mtf_code = _cfg_str("mtf_code", "0716")
+    gtf_code = _cfg_str("gtf_code", "0717")
+    shk1_code = _cfg_str("shk1_code", "0736")
+    vib1_code = _cfg_str("vib1_code", "0737")
+    grav_code = _cfg_str("grav_code", "0747")
+    magf_code = _cfg_str("magf_code", "0732")
+    dipa_code = _cfg_str("dipa_code", "0746")
+    temp_code = _cfg_str("temp_code", "0751")
+    bat2_code = _cfg_str("bat2_code", "0735")
+    pump_threshold = _cfg_float("pump_on_threshold", 300.0)
+
+    changed = False
+    now = time.monotonic()
+
+    pressure = _latest_value(pressure_code)
+    inc = _latest_value(inc_code)
+    azm = _latest_value(azm_code)
+    shk1 = _latest_value(shk1_code)
+    vib1 = _latest_value(vib1_code)
+    grav = _latest_value(grav_code)
+    magf = _latest_value(magf_code)
+    dipa = _latest_value(dipa_code)
+    temp = _latest_value(temp_code)
+    bat2_raw = _latest_value(bat2_code)
+
+    with decoder_lock:
+        if pressure is not None and decoder_state.get("pressure_psi") != pressure:
+            decoder_state["pressure_psi"] = pressure
+            changed = True
+
+            is_pump_on = float(pressure) >= float(pump_threshold)
+            was_pump_on = bool(decoder_state.get("pump_on"))
+            if is_pump_on and not was_pump_on:
+                decoder_state["pump_on"] = True
+                pump_up_start_time = now
+                pump_down_start_time = None
+                decoder_state["pump_down_seconds"] = 0
+                decoder_state["uptime_seconds"] = 0
+                changed = True
+            elif (not is_pump_on) and was_pump_on:
+                decoder_state["pump_on"] = False
+                pump_down_start_time = now
+                changed = True
+
+        if inc is not None and decoder_state.get("inc") != inc:
+            decoder_state["inc"] = inc
+            changed = True
+        if azm is not None and decoder_state.get("azm") != azm:
+            decoder_state["azm"] = azm
+            changed = True
+
+        if shk1 is not None and decoder_state.get("shk1") != shk1:
+            decoder_state["shk1"] = shk1
+            changed = True
+        if vib1 is not None and decoder_state.get("vib1") != vib1:
+            decoder_state["vib1"] = vib1
+            changed = True
+        if grav is not None and decoder_state.get("grav") != grav:
+            decoder_state["grav"] = grav
+            changed = True
+        if magf is not None and decoder_state.get("magf") != magf:
+            decoder_state["magf"] = magf
+            changed = True
+        if dipa is not None and decoder_state.get("dipa") != dipa:
+            decoder_state["dipa"] = dipa
+            changed = True
+        if temp is not None and decoder_state.get("temp") != temp:
+            decoder_state["temp"] = temp
+            changed = True
+
+        if bat2_raw is not None:
+            bat2_on = bool(float(bat2_raw) >= 0.5)
+            if decoder_state.get("bat2_on") != bat2_on:
+                decoder_state["bat2_on"] = bat2_on
+                changed = True
+
+        inc_for_center = decoder_state.get("inc")
+        use_gtf = isinstance(inc_for_center, (int, float)) and float(inc_for_center) >= 3.0
+        center_code = gtf_code if use_gtf else mtf_code
+        center_value = _latest_value(center_code)
+        if center_value is not None and decoder_state.get("center_value") != center_value:
+            decoder_state["center_value"] = center_value
+            changed = True
+
+        snapshot = dict(decoder_state)
+
+    return snapshot if changed else None
 
 
 def choose_serial_port_interactive() -> str:
@@ -132,6 +300,219 @@ def plotter() -> str:
         desktop_ingest_url=os.environ.get("DESKTOP_INGEST_URL", ""),
         desktop_ingest_key=os.environ.get("DESKTOP_INGEST_API_KEY", ""),
     )
+
+
+def _user_data_dir() -> str:
+    root = os.environ.get("MWDMONITOR_USERDATA")
+    if root:
+        return root
+    return os.getcwd()
+
+
+def _serial_config_path() -> str:
+    return os.path.join(_user_data_dir(), "serial_config.json")
+
+
+def _load_serial_config() -> None:
+    global serial_config_snapshot
+    path = _serial_config_path()
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        if isinstance(raw, dict):
+            merged = dict(serial_config_snapshot)
+            merged.update(raw)
+            serial_config_snapshot = merged
+    except FileNotFoundError:
+        return
+    except Exception:
+        return
+
+
+def _save_serial_config() -> None:
+    path = _serial_config_path()
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(serial_config_snapshot, f, ensure_ascii=False, indent=2)
+    except Exception:
+        return
+
+
+def stop_serial_reader() -> None:
+    global serial_reader
+    with serial_lock:
+        reader = serial_reader
+        serial_reader = None
+    if reader is None:
+        return
+    try:
+        reader.stop()
+        reader.join(timeout=2)
+    except Exception:
+        pass
+
+
+def start_serial_reader_from_snapshot() -> None:
+    global serial_reader
+    with serial_lock:
+        cfg = dict(serial_config_snapshot)
+
+    port = cfg.get("serial_port")
+    if not port:
+        return
+
+    try:
+        tmp = argparse.Namespace(
+            serial_port=str(port),
+            baudrate=int(cfg.get("baudrate") or 9600),
+            bytesize=int(cfg.get("bytesize") or 8),
+            parity=str(cfg.get("parity") or "N"),
+            stopbits=str(cfg.get("stopbits") or "1"),
+            timeout=float(cfg.get("timeout") if cfg.get("timeout") is not None else 1.0),
+        )
+        serial_cfg = parse_serial_config(tmp)
+    except Exception as exc:
+        print(f"Error en configuración serial guardada: {exc}")
+        return
+
+    reader = SerialReader(serial_cfg, on_line=handle_line)
+    reader.start()
+    with serial_lock:
+        serial_reader = reader
+
+
+def restart_serial_reader() -> None:
+    stop_serial_reader()
+    start_serial_reader_from_snapshot()
+
+
+@app.route("/api/serial/ports", methods=["GET"])
+def api_serial_ports():
+    try:
+        ports = list_serial_ports()
+    except Exception:
+        ports = []
+    return jsonify({"ports": ports})
+
+
+@app.route("/api/config/serial", methods=["GET", "POST"])
+def api_config_serial():
+    global serial_config_snapshot
+    if request.method == "GET":
+        with serial_lock:
+            snap = dict(serial_config_snapshot)
+        return jsonify(snap)
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return ("Bad Request", 400)
+
+    next_snap = dict(serial_config_snapshot)
+    for key in [
+        "serial_port",
+        "baudrate",
+        "bytesize",
+        "parity",
+        "stopbits",
+        "timeout",
+        "pressure_code",
+        "inc_code",
+        "azm_code",
+        "mtf_code",
+        "gtf_code",
+        "magf_code",
+        "dipa_code",
+        "temp_code",
+        "grav_code",
+        "shk1_code",
+        "vib1_code",
+        "bat2_code",
+        "pump_on_threshold",
+        "ingest_url",
+        "ingest_key",
+        "ingest_interval_seconds",
+    ]:
+        if key in data:
+            next_snap[key] = data.get(key)
+
+    port = next_snap.get("serial_port")
+    if port is not None and str(port).strip() == "":
+        next_snap["serial_port"] = None
+
+    serial_config_snapshot = next_snap
+    _save_serial_config()
+    restart_serial_reader()
+    return jsonify({"ok": True})
+
+
+def _get_ingest_settings() -> tuple[str, str, float]:
+    url = _cfg_str("ingest_url", "").strip()
+    key = _cfg_str("ingest_key", "").strip()
+    interval = _cfg_num("ingest_interval_seconds", 5.0)
+    interval = max(1.0, min(60.0, interval))
+    return url, key, interval
+
+
+def _build_publish_payload() -> dict[str, Any]:
+    with decoder_lock:
+        snap = dict(decoder_state)
+    with latest_lock:
+        wits = dict(latest_values)
+
+    snap["ts"] = time.time()
+    snap["wits"] = wits
+    return snap
+
+
+def _publish_to_render(url: str, key: str, payload: dict[str, Any]) -> tuple[bool, str | None]:
+    if not url:
+        return False, "ingest_url vacío"
+    if not key:
+        return False, "ingest_key vacío"
+
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(url, data=body, method="POST")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Authorization", f"Bearer {key}")
+
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            status = int(getattr(resp, "status", 200))
+            if 200 <= status < 300:
+                return True, None
+            return False, f"HTTP {status}"
+    except urllib.error.HTTPError as exc:
+        return False, f"HTTP {exc.code}"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def render_publisher_background_task() -> None:
+    while True:
+        url, key, interval = _get_ingest_settings()
+        if not url or not key:
+            with decoder_lock:
+                decoder_state["render_publish_ok"] = False
+                decoder_state["render_publish_ts"] = None
+                decoder_state["render_publish_error"] = "OFF (configurar Render URL/Key)"
+                snapshot = dict(decoder_state)
+            if not NO_WEB:
+                socketio.emit("decoder_state", snapshot)
+            time.sleep(interval)
+            continue
+
+        payload = _build_publish_payload()
+        ok, err = _publish_to_render(url, key, payload)
+        with decoder_lock:
+            decoder_state["render_publish_ok"] = bool(ok)
+            decoder_state["render_publish_ts"] = time.time()
+            decoder_state["render_publish_error"] = None if ok else err
+            snapshot = dict(decoder_state)
+        if not NO_WEB:
+            socketio.emit("decoder_state", snapshot)
+
+        time.sleep(interval)
 
 
 def _pg_dsn() -> str | None:
@@ -351,11 +732,41 @@ def api_ingest():
             con.close()
 
     socketio.emit("state_update", payload)
+    socketio.emit("decoder_state", payload)
+    try:
+        w = payload.get("wits") if isinstance(payload, dict) else None
+        if isinstance(w, dict):
+            socketio.emit(
+                "wits_values",
+                {
+                    "0108": w.get("0108"),
+                    "0110": w.get("0110"),
+                },
+            )
+    except Exception:
+        pass
     return jsonify({"ok": True})
 
 
 @socketio.on("connect")
 def on_connect() -> None:
+    with ingest_lock:
+        ing = last_ingest
+
+    if isinstance(ing, dict):
+        w = ing.get("wits")
+        if isinstance(w, dict):
+            payload = {
+                "0108": w.get("0108"),
+                "0110": w.get("0110"),
+            }
+            if not NO_WEB:
+                socketio.emit("wits_values", payload)
+
+        if not NO_WEB:
+            socketio.emit("decoder_state", ing)
+        return
+
     with latest_lock:
         payload = {
             "0108": latest_values.get("0108"),
@@ -407,86 +818,18 @@ def handle_line(line: str) -> None:
         print(line, end="", flush=True)
     else:
         print(f"{parsed.code} {parsed.name}: {parsed.value}", flush=True)
-        if parsed.code in {"0108", "0110"}:
-            with latest_lock:
-                latest_values[parsed.code] = parsed.value
-                payload = {
-                    "0108": latest_values.get("0108"),
-                    "0110": latest_values.get("0110"),
-                }
-            if not NO_WEB:
-                socketio.emit("wits_values", payload)
+        with latest_lock:
+            latest_values[parsed.code] = parsed.value
+            payload = {
+                "0108": latest_values.get("0108"),
+                "0110": latest_values.get("0110"),
+            }
+        if not NO_WEB:
+            socketio.emit("wits_values", payload)
 
-        if parsed.code in {"0713", "0715"}:
-            with decoder_lock:
-                if parsed.code == "0713":
-                    decoder_state["inc"] = parsed.value
-                elif parsed.code == "0715":
-                    decoder_state["azm"] = parsed.value
-                snapshot = dict(decoder_state)
-            if not NO_WEB:
-                socketio.emit("decoder_state", snapshot)
-
-        if parsed.code == "0121":
-            with decoder_lock:
-                now = time.monotonic()
-                seen_0121_count += 1
-                decoder_state["pressure_psi"] = parsed.value
-
-                is_pump_on = isinstance(parsed.value, (int, float)) and float(parsed.value) >= 300
-                was_pump_on = bool(decoder_state.get("pump_on"))
-                if is_pump_on and not was_pump_on:
-                    decoder_state["pump_on"] = True
-                    pump_up_start_time = now
-                    pump_down_start_time = None
-                    decoder_state["pump_down_seconds"] = 0
-                    decoder_state["uptime_seconds"] = 0
-                elif (not is_pump_on) and was_pump_on:
-                    decoder_state["pump_on"] = False
-                    pump_down_start_time = now
-
-                if not decoder_state.get("pump_on") and pump_down_start_time is not None:
-                    decoder_state["pump_down_seconds"] = int(now - pump_down_start_time)
-
-                if (not did_initial_0121_reset) and seen_0121_count >= 3:
-                    did_initial_0121_reset = True
-                    decoder_state["shk1"] = None
-                    decoder_state["vib1"] = None
-                    decoder_state["grav"] = None
-                    decoder_state["magf"] = None
-                    decoder_state["dipa"] = None
-                    decoder_state["temp"] = None
-                    decoder_state["inc"] = None
-                    decoder_state["azm"] = None
-                    decoder_state["center_value"] = None
-
-                snapshot = dict(decoder_state)
-            if not NO_WEB:
-                socketio.emit("decoder_state", snapshot)
-
-        if parsed.code in {"0716", "0717", "0736", "0737", "0747", "0732", "0746", "0751"}:
-            with decoder_lock:
-                if parsed.code == "0736":
-                    decoder_state["shk1"] = parsed.value
-                elif parsed.code == "0737":
-                    decoder_state["vib1"] = parsed.value
-                elif parsed.code == "0747":
-                    decoder_state["grav"] = parsed.value
-                elif parsed.code == "0732":
-                    decoder_state["magf"] = parsed.value
-                elif parsed.code == "0746":
-                    decoder_state["dipa"] = parsed.value
-                elif parsed.code == "0751":
-                    decoder_state["temp"] = parsed.value
-                elif parsed.code in {"0716", "0717"}:
-                    inc = decoder_state.get("inc")
-                    use_0717 = isinstance(inc, (int, float)) and inc >= 3
-                    if (use_0717 and parsed.code == "0717") or ((not use_0717) and parsed.code == "0716"):
-                        decoder_state["center_value"] = parsed.value
-
-                snapshot = dict(decoder_state)
-            if not NO_WEB:
-                socketio.emit("decoder_state", snapshot)
+        snapshot = _update_decoder_from_latest()
+        if snapshot is not None and not NO_WEB:
+            socketio.emit("decoder_state", snapshot)
     if not NO_WEB:
         socketio.emit("witsml_data", {"data": line})
 
@@ -503,6 +846,8 @@ def main() -> None:
 
     global NO_WEB
     args = build_parser().parse_args()
+
+    _load_serial_config()
 
     render_port = os.environ.get("PORT")
     if render_port:
@@ -522,7 +867,45 @@ def main() -> None:
         return
 
     if not args.no_serial and not args.serial_port:
-        args.serial_port = choose_serial_port_interactive()
+        with serial_lock:
+            saved_port = serial_config_snapshot.get("serial_port")
+            saved_baud = serial_config_snapshot.get("baudrate")
+            saved_bytesize = serial_config_snapshot.get("bytesize")
+            saved_parity = serial_config_snapshot.get("parity")
+            saved_stopbits = serial_config_snapshot.get("stopbits")
+            saved_timeout = serial_config_snapshot.get("timeout")
+
+        if saved_port:
+            args.serial_port = str(saved_port)
+            if saved_baud is not None:
+                try:
+                    args.baudrate = int(saved_baud)
+                except Exception:
+                    pass
+            if saved_bytesize is not None:
+                try:
+                    args.bytesize = int(saved_bytesize)
+                except Exception:
+                    pass
+            if saved_parity is not None:
+                args.parity = str(saved_parity)
+            if saved_stopbits is not None:
+                args.stopbits = str(saved_stopbits)
+            if saved_timeout is not None:
+                try:
+                    args.timeout = float(saved_timeout)
+                except Exception:
+                    pass
+        else:
+            try:
+                is_tty = bool(getattr(sys.stdin, "isatty", lambda: False)())
+            except Exception:
+                is_tty = False
+
+            if is_tty:
+                args.serial_port = choose_serial_port_interactive()
+            else:
+                args.no_serial = True
 
     NO_WEB = bool(args.no_web)
 
@@ -534,8 +917,20 @@ def main() -> None:
             print(f"Error en parámetros del puerto: {exc}")
             sys.exit(1)
 
+        with serial_lock:
+            serial_config_snapshot["serial_port"] = args.serial_port
+            serial_config_snapshot["baudrate"] = args.baudrate
+            serial_config_snapshot["bytesize"] = args.bytesize
+            serial_config_snapshot["parity"] = args.parity
+            serial_config_snapshot["stopbits"] = args.stopbits
+            serial_config_snapshot["timeout"] = args.timeout
+        _save_serial_config()
+
         reader = SerialReader(serial_config, on_line=handle_line)
         reader.start()
+        with serial_lock:
+            global serial_reader
+            serial_reader = reader
 
     def shutdown(*_: object) -> None:
         if reader is not None:
@@ -555,6 +950,7 @@ def main() -> None:
             shutdown()
     else:
         socketio.start_background_task(decoder_background_task)
+        socketio.start_background_task(render_publisher_background_task)
         print(f"Servidor web iniciado en http://{args.web_host}:{args.web_port}", flush=True)
         socketio.run(app, host=args.web_host, port=args.web_port)
 

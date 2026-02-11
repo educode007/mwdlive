@@ -1,12 +1,56 @@
 {
   "name": "mwdmonitor-desktop",
-  "version": "0.1.0",
+  "version": "0.1.7",
   "private": true,
   "main": "main.js",
+  "description": "MWD Monitor Desktop",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.educode007.mwdmonitor",
+    "productName": "MWD Monitor",
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "..\\app.py",
+        "to": "backend\\app.py"
+      },
+      {
+        "from": "..\\serial_reader.py",
+        "to": "backend\\serial_reader.py"
+      },
+      {
+        "from": "..\\wits_parser.py",
+        "to": "backend\\wits_parser.py"
+      },
+      {
+        "from": "..\\templates",
+        "to": "backend\\templates"
+      },
+      {
+        "from": "..\\requirements.txt",
+        "to": "backend\\requirements.txt"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "devDependencies": {
-    "electron": "^30.0.0"
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
   }
 }
