@@ -6,6 +6,8 @@ except Exception:
     pass
 
 import argparse
+import csv
+import io
 import json
 import os
 import signal
@@ -18,7 +20,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, Response
 from flask_socketio import SocketIO
 
 from serial_reader import SerialReader, list_serial_ports, parse_serial_config
@@ -40,24 +42,25 @@ pump_up_start_time: float | None = None
 pump_down_start_time: float | None = None
 seen_0121_count = 0
 did_initial_0121_reset = False
+last_pump_reset_seq_logged: int | None = None
 decoder_state: dict[str, Any] = {
     "title": "Compass Rose - Live Mode",
     "network_id": "618410",
-    "pressure_psi": 1983,
+    "pressure_psi": None,
     "dec_deg": 6.81,
     "dao_deg": 0.0,
     "pump_on": False,
     "pump_down_seconds": 0,
     "uptime_seconds": 0,
-    "shk1": 0.39,
-    "vib1": 0.00,
-    "magf": 0.22,
-    "inc": 88.11,
-    "azm": 167.83,
-    "bat2_on": True,
+    "shk1": None,
+    "vib1": None,
+    "magf": None,
+    "inc": None,
+    "azm": None,
+    "bat2_on": None,
     "center_label": "gTFA",
     "center_value": None,
-    "center_counter_seconds": 7,
+    "center_counter_seconds": 0,
     "tfa_tick": 0,
     "reset_seq": 0,
     "render_publish_ok": None,
@@ -171,6 +174,9 @@ def _update_decoder_from_latest() -> dict[str, Any] | None:
     temp = _latest_value(temp_code)
     bat2_raw = _latest_value(bat2_code)
 
+    did_pump_reset = False
+    snapshot_after_reset: dict[str, Any] | None = None
+
     with decoder_lock:
         if pressure is not None:
             if decoder_state.get("pressure_psi") != pressure:
@@ -200,52 +206,63 @@ def _update_decoder_from_latest() -> dict[str, Any] | None:
                 except Exception:
                     decoder_state["reset_seq"] = 1
                 changed = True
+
+                did_pump_reset = True
+                snapshot_after_reset = dict(decoder_state)
             elif (not is_pump_on) and was_pump_on:
                 decoder_state["pump_on"] = False
                 pump_down_start_time = now
                 changed = True
 
-        if inc is not None and decoder_state.get("inc") != inc:
-            decoder_state["inc"] = inc
-            changed = True
-        if azm is not None and decoder_state.get("azm") != azm:
-            decoder_state["azm"] = azm
-            changed = True
-
-        if shk1 is not None and decoder_state.get("shk1") != shk1:
-            decoder_state["shk1"] = shk1
-            changed = True
-        if vib1 is not None and decoder_state.get("vib1") != vib1:
-            decoder_state["vib1"] = vib1
-            changed = True
-        if grav is not None and decoder_state.get("grav") != grav:
-            decoder_state["grav"] = grav
-            changed = True
-        if magf is not None and decoder_state.get("magf") != magf:
-            decoder_state["magf"] = magf
-            changed = True
-        if dipa is not None and decoder_state.get("dipa") != dipa:
-            decoder_state["dipa"] = dipa
-            changed = True
-        if temp is not None and decoder_state.get("temp") != temp:
-            decoder_state["temp"] = temp
-            changed = True
-
-        if bat2_raw is not None:
-            bat2_on = bool(float(bat2_raw) >= 0.5)
-            if decoder_state.get("bat2_on") != bat2_on:
-                decoder_state["bat2_on"] = bat2_on
+        # If we just detected Pump Off -> Pump On, we intentionally keep bullets empty
+        # until new serial data arrives. Do NOT repopulate from previous latest_values.
+        if not did_pump_reset:
+            if inc is not None and decoder_state.get("inc") != inc:
+                decoder_state["inc"] = inc
+                changed = True
+            if azm is not None and decoder_state.get("azm") != azm:
+                decoder_state["azm"] = azm
                 changed = True
 
-        inc_for_center = decoder_state.get("inc")
-        use_gtf = isinstance(inc_for_center, (int, float)) and float(inc_for_center) >= 3.0
-        center_code = gtf_code if use_gtf else mtf_code
-        center_value = _latest_value(center_code)
-        if center_value is not None and decoder_state.get("center_value") != center_value:
-            decoder_state["center_value"] = center_value
-            changed = True
+            if shk1 is not None and decoder_state.get("shk1") != shk1:
+                decoder_state["shk1"] = shk1
+                changed = True
+            if vib1 is not None and decoder_state.get("vib1") != vib1:
+                decoder_state["vib1"] = vib1
+                changed = True
+            if grav is not None and decoder_state.get("grav") != grav:
+                decoder_state["grav"] = grav
+                changed = True
+            if magf is not None and decoder_state.get("magf") != magf:
+                decoder_state["magf"] = magf
+                changed = True
+            if dipa is not None and decoder_state.get("dipa") != dipa:
+                decoder_state["dipa"] = dipa
+                changed = True
+            if temp is not None and decoder_state.get("temp") != temp:
+                decoder_state["temp"] = temp
+                changed = True
+
+            if bat2_raw is not None:
+                bat2_on = bool(float(bat2_raw) >= 0.5)
+                if decoder_state.get("bat2_on") != bat2_on:
+                    decoder_state["bat2_on"] = bat2_on
+                    changed = True
+
+            inc_for_center = decoder_state.get("inc")
+            use_gtf = isinstance(inc_for_center, (int, float)) and float(inc_for_center) >= 3.0
+            center_code = gtf_code if use_gtf else mtf_code
+            center_value = _latest_value(center_code)
+            if center_value is not None and decoder_state.get("center_value") != center_value:
+                decoder_state["center_value"] = center_value
+                changed = True
 
         snapshot = dict(decoder_state)
+
+    if did_pump_reset and snapshot_after_reset is not None:
+        with latest_lock:
+            latest_values.clear()
+        return snapshot_after_reset
 
     return snapshot if changed else None
 
@@ -564,12 +581,77 @@ def _pg_ensure_schema() -> None:
                     ");"
                 )
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_ingest_ts ON ingest_snapshots(ts);")
+                cur.execute(
+                    "CREATE TABLE IF NOT EXISTS incazm_log ("
+                    "  id BIGSERIAL PRIMARY KEY,"
+                    "  ts DOUBLE PRECISION NOT NULL,"
+                    "  name TEXT NOT NULL,"
+                    "  value DOUBLE PRECISION NOT NULL"
+                    ");"
+                )
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_incazm_ts ON incazm_log(ts);")
     finally:
         con.close()
 
 
+def _pg_add_incazm(ts_epoch: float, name: str, value: float) -> None:
+    try:
+        _pg_ensure_schema()
+        con = _pg_connect()
+        if con is None:
+            return
+        try:
+            with con:
+                with con.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO incazm_log(ts, name, value) VALUES (%s, %s, %s);",
+                        (float(ts_epoch), str(name), float(value)),
+                    )
+        finally:
+            con.close()
+    except Exception:
+        pass
+
+
+def _pg_read_incazm(limit: int = 20000) -> list[tuple[float, str, float]]:
+    limit = max(1, min(20000, int(limit)))
+    try:
+        _pg_ensure_schema()
+        con = _pg_connect()
+        if con is None:
+            return []
+        try:
+            with con.cursor() as cur:
+                cur.execute(
+                    "SELECT ts, name, value FROM incazm_log ORDER BY ts ASC LIMIT %s;",
+                    (limit,),
+                )
+                rows = cur.fetchall()
+        finally:
+            con.close()
+        out: list[tuple[float, str, float]] = []
+        for r in rows or []:
+            try:
+                out.append((float(r[0]), str(r[1]), float(r[2])))
+            except Exception:
+                continue
+        return out
+    except Exception:
+        return []
+
+
 def _db_path() -> str:
-    return os.environ.get("MWDMONITOR_DB", os.path.join(os.getcwd(), "mwdmonitor.db"))
+    override = os.environ.get("MWDMONITOR_DB")
+    if override:
+        return override
+    user_dir = os.environ.get("MWDMONITOR_USERDATA")
+    if user_dir:
+        try:
+            os.makedirs(user_dir, exist_ok=True)
+        except Exception:
+            pass
+        return os.path.join(user_dir, "mwdmonitor.db")
+    return os.path.join(os.getcwd(), "mwdmonitor.db")
 
 
 def _db_connect() -> sqlite3.Connection:
@@ -583,7 +665,83 @@ def _db_connect() -> sqlite3.Connection:
         ");"
     )
     con.execute("CREATE INDEX IF NOT EXISTS idx_ingest_ts ON ingest_snapshots(ts);")
+    con.execute(
+        "CREATE TABLE IF NOT EXISTS incazm_log ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  ts REAL NOT NULL,"
+        "  name TEXT NOT NULL,"
+        "  value REAL NOT NULL"
+        ");"
+    )
+    con.execute("CREATE INDEX IF NOT EXISTS idx_incazm_ts ON incazm_log(ts);")
     return con
+
+
+def _db_add_incazm(ts_epoch: float, name: str, value: float) -> None:
+    try:
+        con = _db_connect()
+        try:
+            con.execute(
+                "INSERT INTO incazm_log(ts, name, value) VALUES (?, ?, ?);",
+                (float(ts_epoch), str(name), float(value)),
+            )
+            con.commit()
+        finally:
+            con.close()
+    except Exception:
+        pass
+
+
+def _db_read_incazm(limit: int = 20000) -> list[tuple[float, str, float]]:
+    limit = max(1, min(20000, int(limit)))
+    try:
+        con = _db_connect()
+        try:
+            rows = con.execute(
+                "SELECT ts, name, value FROM incazm_log ORDER BY ts ASC LIMIT ?;",
+                (limit,),
+            ).fetchall()
+        finally:
+            con.close()
+        out: list[tuple[float, str, float]] = []
+        for r in rows or []:
+            try:
+                out.append((float(r[0]), str(r[1]), float(r[2])))
+            except Exception:
+                continue
+        return out
+    except Exception:
+        return []
+
+
+@app.route("/api/incazm/log", methods=["GET"])
+def api_incazm_log():
+    limit_raw = request.args.get("limit", "20000")
+    try:
+        limit = int(limit_raw)
+    except Exception:
+        limit = 20000
+    rows = _pg_read_incazm(limit=limit) if _pg_dsn() else _db_read_incazm(limit=limit)
+    items = []
+    for ts, name, value in rows:
+        items.append({"ts": ts, "name": name, "value": value})
+    return jsonify({"items": items})
+
+
+@app.route("/api/incazm/export.csv", methods=["GET"])
+def api_incazm_export_csv():
+    rows = _pg_read_incazm(limit=20000) if _pg_dsn() else _db_read_incazm(limit=20000)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["ts", "name", "value"])
+    for ts, name, value in rows:
+        w.writerow([ts, name, value])
+    data = buf.getvalue().encode("utf-8")
+    return Response(
+        data,
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=inc_azm_log.csv"},
+    )
 
 
 def _retention_seconds() -> int:
@@ -798,9 +956,11 @@ def on_connect() -> None:
 
 
 def decoder_background_task() -> None:
-    global last_tfa_update, pump_down_start_time
+    global last_tfa_update, pump_down_start_time, last_pump_reset_seq_logged
     while True:
         time.sleep(1)
+        did_log = False
+        log_rows: list[dict[str, Any]] = []
         with decoder_lock:
             uptime = int(time.monotonic() - start_time)
             now = time.monotonic()
@@ -818,10 +978,46 @@ def decoder_background_task() -> None:
                 decoder_state["center_label"] = "mTFA"
             else:
                 decoder_state["center_label"] = "gTFA"
-            if uptime - last_tfa_update >= 5:
+            if decoder_state.get("pump_on") and uptime - last_tfa_update >= 5:
                 decoder_state["tfa_tick"] = int(decoder_state.get("tfa_tick", 0)) + 1
                 last_tfa_update = uptime
+            elif not decoder_state.get("pump_on"):
+                last_tfa_update = uptime
+
+            # Inc/Azm log once per pump cycle: ~60s after OFF->ON reset.
+            rs = decoder_state.get("reset_seq")
+            try:
+                rs_i = int(rs) if rs is not None else 0
+            except Exception:
+                rs_i = 0
+
+            if (
+                decoder_state.get("pump_on")
+                and pump_up_start_time is not None
+                and rs_i > 0
+                and last_pump_reset_seq_logged != rs_i
+                and (now - pump_up_start_time) >= 60
+            ):
+                inc = decoder_state.get("inc")
+                azm = decoder_state.get("azm")
+                if isinstance(inc, (int, float)) and isinstance(azm, (int, float)):
+                    ts_epoch = time.time()
+                    log_rows = [
+                        {"ts": ts_epoch, "name": "Inc", "value": float(inc)},
+                        {"ts": ts_epoch, "name": "Azm", "value": float(azm)},
+                    ]
+                    did_log = True
+                    last_pump_reset_seq_logged = rs_i
             snapshot = dict(decoder_state)
+
+        if did_log:
+            for r in log_rows:
+                if _pg_dsn():
+                    _pg_add_incazm(float(r["ts"]), str(r["name"]), float(r["value"]))
+                else:
+                    _db_add_incazm(float(r["ts"]), str(r["name"]), float(r["value"]))
+            if not NO_WEB:
+                socketio.emit("incazm_log_append", {"items": log_rows})
         if not NO_WEB:
             socketio.emit("decoder_state", snapshot)
 

@@ -248,76 +248,61 @@
         color: #444;
       }
 
-      .cfg-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.35);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-      }
-
-      .cfg-overlay.open { display: flex; }
-
-      .cfg-panel {
-        width: min(640px, 92vw);
-        background: #f7f7f7;
+      .log-panel {
+        margin-top: 10px;
+        background: var(--panel);
         border: 1px solid #c8c8c8;
         border-radius: 12px;
-        padding: 14px;
-        box-shadow: 0 12px 38px rgba(0, 0, 0, 0.25);
-        max-height: min(84vh, 720px);
-        overflow: auto;
+        padding: 10px;
+        box-sizing: border-box;
       }
 
-      .cfg-title {
-        font-size: 18px;
-        font-weight: 800;
-        margin-bottom: 10px;
-      }
-
-      .cfg-row {
-        display: grid;
-        grid-template-columns: 160px 1fr;
-        gap: 10px;
-        align-items: center;
-        padding: 6px 0;
-      }
-
-      @media (max-width: 720px) {
-        .cfg-row {
-          grid-template-columns: 120px 1fr;
-        }
-      }
-
-      @media (max-width: 520px) {
-        .cfg-row {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      .cfg-row label { font-weight: 700; color: #333; }
-
-      .cfg-actions {
+      .log-panel .hdr {
         display: flex;
-        justify-content: flex-end;
+        align-items: center;
+        justify-content: space-between;
         gap: 10px;
-        margin-top: 12px;
+        margin-bottom: 8px;
       }
 
-      .cfg-actions button {
+      .log-panel .hdr .title {
         font-weight: 800;
-        padding: 8px 12px;
-        border-radius: 10px;
-        border: 1px solid #bdbdbd;
-        background: #ffffff;
-        cursor: pointer;
+        color: #333;
       }
 
-      .cfg-actions button.primary {
-        background: var(--green);
-        border-color: var(--green-border);
+      .log-table-wrap {
+        height: calc(100vh - 290px);
+        overflow: auto;
+        background: #fff;
+        border: 1px solid #d0d0d0;
+        border-radius: 10px;
+      }
+
+      table.log {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+
+      table.log thead th {
+        position: sticky;
+        top: 0;
+        background: #f5f5f5;
+        z-index: 1;
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid #e0e0e0;
+        white-space: nowrap;
+      }
+
+      table.log tbody td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #f0f0f0;
+        white-space: nowrap;
+      }
+
+      table.log tbody tr:hover {
+        background: #fafafa;
       }
     </style>
   </head>
@@ -328,7 +313,6 @@
         <span style="float: right; font-weight: 700;">
           <a href="/" style="color: inherit; text-decoration: underline; margin-right: 10px;">Monitor</a>
           <a href="/plotter" style="color: inherit; text-decoration: underline;">Graficador</a>
-          <a href="#" id="openConfig" style="color: inherit; text-decoration: underline; margin-left: 10px;">Config</a>
         </span>
       </div>
 
@@ -412,129 +396,33 @@
               <div>Render <span id="renderStatus">OFF</span></div>
               <div class="status">Socket: <span id="status">Conectando…</span></div>
             </div>
+
+            <div class="log-panel">
+              <div class="hdr">
+                <div class="title">Data Table</div>
+                <button id="exportIncAzm">Export CSV</button>
+              </div>
+              <div class="log-table-wrap" id="incAzmWrap">
+                <table class="log">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Hora</th>
+                      <th>Nombre</th>
+                      <th>Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody id="incAzmBody"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cfg-overlay" id="cfgOverlay">
-      <div class="cfg-panel">
-        <div class="cfg-title">Configuración</div>
-
-        <div class="cfg-row">
-          <label for="cfgPort">Puerto</label>
-          <div>
-            <select id="cfgPort" style="width: 100%; padding: 8px;"></select>
-            <div style="font-size: 12px; color: #555; margin-top: 4px;">Ej: COM3</div>
-          </div>
-        </div>
-
-        <div class="cfg-row">
-          <label for="cfgBaud">Baudrate</label>
-          <input id="cfgBaud" type="number" min="300" step="1" style="width: 100%; padding: 8px;" />
-        </div>
-
-        <div class="cfg-row">
-          <label for="cfgPumpThreshold">Umbral Pump On</label>
-          <input id="cfgPumpThreshold" type="number" step="1" style="width: 100%; padding: 8px;" />
-        </div>
-
-        <div class="cfg-row">
-          <label for="cfgPressureCode">Pressure</label>
-          <input id="cfgPressureCode" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-        <div class="cfg-row">
-          <label for="cfgIncCode">Inc</label>
-          <input id="cfgIncCode" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-        <div class="cfg-row">
-          <label for="cfgAzmCode">AZI</label>
-          <input id="cfgAzmCode" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-        <div class="cfg-row">
-          <label for="cfgMtfCode">MTF</label>
-          <input id="cfgMtfCode" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-        <div class="cfg-row">
-          <label for="cfgGtfCode">GTF</label>
-          <input id="cfgGtfCode" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-        <div class="cfg-row">
-          <label for="cfgMagfCode">MagF</label>
-          <input id="cfgMagfCode" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-        <div class="cfg-row">
-          <label for="cfgDipaCode">DipA</label>
-          <input id="cfgDipaCode" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-        <div class="cfg-row">
-          <label for="cfgTempCode">TmpW</label>
-          <input id="cfgTempCode" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-        <div class="cfg-row">
-          <label for="cfgGravCode">GrvW</label>
-          <input id="cfgGravCode" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-        <div class="cfg-row">
-          <label for="cfgShk1Code">Shk1</label>
-          <input id="cfgShk1Code" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-        <div class="cfg-row">
-          <label for="cfgVib1Code">Vib1</label>
-          <input id="cfgVib1Code" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-        <div class="cfg-row">
-          <label for="cfgBat2Code">Bat2</label>
-          <input id="cfgBat2Code" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-
-        <div class="cfg-row" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #d0d0d0;">
-          <label for="cfgIngestUrl">Render URL</label>
-          <input id="cfgIngestUrl" type="text" style="width: 100%; padding: 8px;" />
-        </div>
-
-        <div class="cfg-row">
-          <label for="cfgIngestKey">Render Key</label>
-          <input id="cfgIngestKey" type="password" style="width: 100%; padding: 8px;" />
-        </div>
-
-        <div class="cfg-row">
-          <label for="cfgIngestInterval">Intervalo (s)</label>
-          <input id="cfgIngestInterval" type="number" min="1" max="60" step="1" style="width: 100%; padding: 8px;" />
-        </div>
-
-        <div class="cfg-actions">
-          <button id="cfgCancel">Cerrar</button>
-          <button class="primary" id="cfgSave">Guardar</button>
         </div>
       </div>
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
-      const openConfigEl = document.getElementById('openConfig');
-      const cfgOverlayEl = document.getElementById('cfgOverlay');
-      const cfgPortEl = document.getElementById('cfgPort');
-      const cfgBaudEl = document.getElementById('cfgBaud');
-      const cfgPumpThresholdEl = document.getElementById('cfgPumpThreshold');
-      const cfgPressureCodeEl = document.getElementById('cfgPressureCode');
-      const cfgIncCodeEl = document.getElementById('cfgIncCode');
-      const cfgAzmCodeEl = document.getElementById('cfgAzmCode');
-      const cfgMtfCodeEl = document.getElementById('cfgMtfCode');
-      const cfgGtfCodeEl = document.getElementById('cfgGtfCode');
-      const cfgMagfCodeEl = document.getElementById('cfgMagfCode');
-      const cfgDipaCodeEl = document.getElementById('cfgDipaCode');
-      const cfgTempCodeEl = document.getElementById('cfgTempCode');
-      const cfgGravCodeEl = document.getElementById('cfgGravCode');
-      const cfgShk1CodeEl = document.getElementById('cfgShk1Code');
-      const cfgVib1CodeEl = document.getElementById('cfgVib1Code');
-      const cfgBat2CodeEl = document.getElementById('cfgBat2Code');
-      const cfgIngestUrlEl = document.getElementById('cfgIngestUrl');
-      const cfgIngestKeyEl = document.getElementById('cfgIngestKey');
-      const cfgIngestIntervalEl = document.getElementById('cfgIngestInterval');
-      const cfgCancelEl = document.getElementById('cfgCancel');
-      const cfgSaveEl = document.getElementById('cfgSave');
-
       const statusEl = document.getElementById('status');
 
       const titleEl = document.getElementById('titleText');
@@ -558,6 +446,10 @@
       const centerValueEl = document.getElementById('centerValue');
       const centerCounterEl = document.getElementById('centerCounter');
 
+      const incAzmBodyEl = document.getElementById('incAzmBody');
+      const incAzmWrapEl = document.getElementById('incAzmWrap');
+      const exportIncAzmEl = document.getElementById('exportIncAzm');
+
       const canvas = document.getElementById('compass');
       const ctx = canvas.getContext('2d');
       let currentAzm = 0;
@@ -566,117 +458,6 @@
       let lastResetSeq = null;
 
       const socket = io();
-
-      function cfgOpen() {
-        cfgOverlayEl.classList.add('open');
-      }
-
-      function cfgClose() {
-        cfgOverlayEl.classList.remove('open');
-      }
-
-      async function loadPorts() {
-        try {
-          const res = await fetch('/api/serial/ports');
-          const js = await res.json();
-          const ports = Array.isArray(js && js.ports) ? js.ports : [];
-          cfgPortEl.innerHTML = '';
-          const empty = document.createElement('option');
-          empty.value = '';
-          empty.textContent = '—';
-          cfgPortEl.appendChild(empty);
-          for (const p of ports) {
-            const opt = document.createElement('option');
-            opt.value = String(p);
-            opt.textContent = String(p);
-            cfgPortEl.appendChild(opt);
-          }
-        } catch (_) {
-        }
-      }
-
-      async function loadSerialConfig() {
-        try {
-          const res = await fetch('/api/config/serial');
-          const js = await res.json();
-          const port = js && js.serial_port ? String(js.serial_port) : '';
-          const baud = js && js.baudrate ? Number(js.baudrate) : 9600;
-          cfgPortEl.value = port;
-          cfgBaudEl.value = String(baud);
-
-          cfgPumpThresholdEl.value = String((js && js.pump_on_threshold !== undefined && js.pump_on_threshold !== null) ? js.pump_on_threshold : 300);
-          cfgPressureCodeEl.value = String((js && js.pressure_code) ? js.pressure_code : '0121');
-          cfgIncCodeEl.value = String((js && js.inc_code) ? js.inc_code : '0713');
-          cfgAzmCodeEl.value = String((js && js.azm_code) ? js.azm_code : '0715');
-          cfgMtfCodeEl.value = String((js && js.mtf_code) ? js.mtf_code : '0716');
-          cfgGtfCodeEl.value = String((js && js.gtf_code) ? js.gtf_code : '0717');
-          cfgMagfCodeEl.value = String((js && js.magf_code) ? js.magf_code : '0732');
-          cfgDipaCodeEl.value = String((js && js.dipa_code) ? js.dipa_code : '0746');
-          cfgTempCodeEl.value = String((js && js.temp_code) ? js.temp_code : '0751');
-          cfgGravCodeEl.value = String((js && js.grav_code) ? js.grav_code : '0747');
-          cfgShk1CodeEl.value = String((js && js.shk1_code) ? js.shk1_code : '0736');
-          cfgVib1CodeEl.value = String((js && js.vib1_code) ? js.vib1_code : '0737');
-          cfgBat2CodeEl.value = String((js && js.bat2_code) ? js.bat2_code : '0735');
-
-          cfgIngestUrlEl.value = String((js && js.ingest_url) ? js.ingest_url : '');
-          cfgIngestKeyEl.value = String((js && js.ingest_key) ? js.ingest_key : '');
-          cfgIngestIntervalEl.value = String((js && js.ingest_interval_seconds) ? js.ingest_interval_seconds : 5);
-        } catch (_) {
-        }
-      }
-
-      async function saveSerialConfig() {
-        const port = String(cfgPortEl.value || '').trim();
-        const baud = Number(cfgBaudEl.value) || 9600;
-        const pumpOnThreshold = Number(cfgPumpThresholdEl.value) || 300;
-        try {
-          await fetch('/api/config/serial', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              serial_port: port,
-              baudrate: baud,
-              pump_on_threshold: pumpOnThreshold,
-              pressure_code: String(cfgPressureCodeEl.value || '').trim(),
-              inc_code: String(cfgIncCodeEl.value || '').trim(),
-              azm_code: String(cfgAzmCodeEl.value || '').trim(),
-              mtf_code: String(cfgMtfCodeEl.value || '').trim(),
-              gtf_code: String(cfgGtfCodeEl.value || '').trim(),
-              magf_code: String(cfgMagfCodeEl.value || '').trim(),
-              dipa_code: String(cfgDipaCodeEl.value || '').trim(),
-              temp_code: String(cfgTempCodeEl.value || '').trim(),
-              grav_code: String(cfgGravCodeEl.value || '').trim(),
-              shk1_code: String(cfgShk1CodeEl.value || '').trim(),
-              vib1_code: String(cfgVib1CodeEl.value || '').trim(),
-              bat2_code: String(cfgBat2CodeEl.value || '').trim(),
-              ingest_url: String(cfgIngestUrlEl.value || '').trim(),
-              ingest_key: String(cfgIngestKeyEl.value || '').trim(),
-              ingest_interval_seconds: Number(cfgIngestIntervalEl.value) || 5,
-            }),
-          });
-        } catch (_) {
-        }
-      }
-
-      openConfigEl.addEventListener('click', async (e) => {
-        e.preventDefault();
-        cfgOpen();
-        await loadPorts();
-        await loadSerialConfig();
-      });
-
-      cfgCancelEl.addEventListener('click', () => {
-        cfgClose();
-      });
-
-      cfgOverlayEl.addEventListener('click', (e) => {
-        if (e.target === cfgOverlayEl) cfgClose();
-      });
-
-      cfgSaveEl.addEventListener('click', async () => {
-        await saveSerialConfig();
-        cfgClose();
-      });
 
       function pad2(n) {
         return String(n).padStart(2, '0');
@@ -834,6 +615,83 @@
       socket.on('disconnect', () => {
         statusEl.textContent = 'Desconectado';
       });
+
+      function fmtDateLocal(d) {
+        try {
+          return d.toLocaleDateString('es-AR', { year: 'numeric', month: 'short', day: '2-digit' });
+        } catch (_) {
+          return d.toLocaleDateString();
+        }
+      }
+
+      function fmtTimeLocal(d) {
+        try {
+          return d.toLocaleTimeString('es-AR', { hour12: false });
+        } catch (_) {
+          return d.toLocaleTimeString();
+        }
+      }
+
+      function appendIncAzmRows(items) {
+        if (!Array.isArray(items)) return;
+        for (const it of items) {
+          if (!it) continue;
+          const ts = Number(it.ts);
+          const name = it.name !== undefined && it.name !== null ? String(it.name) : '';
+          const value = it.value;
+          if (!Number.isFinite(ts) || !name) continue;
+
+          const d = new Date(ts * 1000);
+          const tr = document.createElement('tr');
+          const tdDate = document.createElement('td');
+          const tdTime = document.createElement('td');
+          const tdName = document.createElement('td');
+          const tdVal = document.createElement('td');
+
+          tdDate.textContent = fmtDateLocal(d);
+          tdTime.textContent = fmtTimeLocal(d);
+          tdName.textContent = name;
+          tdVal.textContent = (value === null || value === undefined) ? '' : String(value);
+
+          tr.appendChild(tdDate);
+          tr.appendChild(tdTime);
+          tr.appendChild(tdName);
+          tr.appendChild(tdVal);
+          incAzmBodyEl.appendChild(tr);
+        }
+
+        try {
+          incAzmWrapEl.scrollTop = incAzmWrapEl.scrollHeight;
+        } catch (_) {
+        }
+      }
+
+      async function loadIncAzmLog() {
+        try {
+          const r = await fetch('/api/incazm/log?limit=20000');
+          if (!r || !r.ok) return;
+          const js = await r.json();
+          const items = (js && Array.isArray(js.items)) ? js.items : [];
+          incAzmBodyEl.innerHTML = '';
+          appendIncAzmRows(items);
+        } catch (_) {
+        }
+      }
+
+      exportIncAzmEl.addEventListener('click', () => {
+        try {
+          window.location.href = '/api/incazm/export.csv';
+        } catch (_) {
+        }
+      });
+
+      socket.on('incazm_log_append', (msg) => {
+        if (!msg) return;
+        const items = Array.isArray(msg.items) ? msg.items : [];
+        appendIncAzmRows(items);
+      });
+
+      loadIncAzmLog();
 
       socket.on('decoder_state', (s) => {
         if (!s) return;
