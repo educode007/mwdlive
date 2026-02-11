@@ -231,7 +231,7 @@
       }
     </style>
   </head>
-  <body data-desktop-ingest-url="{{ desktop_ingest_url|default('')|e }}" data-desktop-ingest-key="{{ desktop_ingest_key|default('')|e }}">
+  <body data-desktop-ingest-url="{{ desktop_ingest_url|default('')|e }}" data-desktop-ingest-key="{{ desktop_ingest_key|default('')|e }}" data-viewer-mode="{{ viewer_mode|default('')|e }}">
     <div class="frame">
       <div class="titlebar">
         <span>Graficador</span>
@@ -242,7 +242,7 @@
       </div>
 
       <div class="layout">
-        <div class="controls">
+        <div class="controls" id="controlsPanel">
           <div class="panel">
             <div class="btnbar" style="justify-content: space-between;">
               <div>
@@ -301,6 +301,8 @@
             <div class="btnbar" style="margin-bottom: 6px;">
               <button id="measureToggle">Medir</button>
               <button id="clearMeasures">Borrar medidas</button>
+              <button id="dlTop">Descargar Top (PNG)</button>
+              <button id="dlVS">Descargar VS (PNG)</button>
               <span id="measureHint" class="hint" style="margin-left: 6px;"></span>
             </div>
             <div class="hint">
@@ -355,6 +357,10 @@
 
       const plotTopEl = document.getElementById('plotTop');
       const plotVSEl = document.getElementById('plotVS');
+
+      const controlsPanelEl = document.getElementById('controlsPanel');
+      const dlTopBtn = document.getElementById('dlTop');
+      const dlVSBtn = document.getElementById('dlVS');
 
       const measureToggleBtn = document.getElementById('measureToggle');
       const clearMeasuresBtn = document.getElementById('clearMeasures');
@@ -448,7 +454,25 @@
       }
 
       const urlParams = new URLSearchParams(window.location.search || '');
-      const isViewer = urlParams.get('viewer') === '1';
+      const isViewer = (urlParams.get('viewer') === '1') || ((document.body && document.body.dataset && document.body.dataset.viewerMode) ? String(document.body.dataset.viewerMode) === '1' : false);
+
+      function downloadPlot(el, filename) {
+        try {
+          if (!el) return;
+          Plotly.downloadImage(el, {
+            format: 'png',
+            filename: filename,
+            width: 1600,
+            height: 900,
+            scale: 2,
+          });
+        } catch (e) {
+          setError(`download error: ${String(e && e.message ? e.message : e)}`);
+        }
+      }
+
+      dlTopBtn.addEventListener('click', () => downloadPlot(plotTopEl, 'mwd_top'));
+      dlVSBtn.addEventListener('click', () => downloadPlot(plotVSEl, 'mwd_vs'));
 
       function saveState() {
         if (isViewer) return;
@@ -1251,6 +1275,11 @@
             document.getElementById('saveLocal').disabled = true;
             document.getElementById('loadLocal').disabled = true;
             document.getElementById('resetAll').disabled = true;
+          } catch (_) {
+          }
+
+          try {
+            if (controlsPanelEl) controlsPanelEl.style.display = 'none';
           } catch (_) {
           }
 

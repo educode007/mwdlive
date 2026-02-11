@@ -327,11 +327,21 @@ def index() -> str:
 
 
 @app.route("/plotter")
-def plotter() -> str:
+def plotter():
     return render_template(
         "plotter.html",
-        desktop_ingest_url=os.environ.get("DESKTOP_INGEST_URL", ""),
-        desktop_ingest_key=os.environ.get("DESKTOP_INGEST_API_KEY", ""),
+        desktop_ingest_url=_cfg_str("ingest_url", ""),
+        desktop_ingest_key=_cfg_str("ingest_key", ""),
+    )
+
+
+@app.route("/plotter/viewer")
+def plotter_viewer():
+    return render_template(
+        "plotter.html",
+        desktop_ingest_url="",
+        desktop_ingest_key="",
+        viewer_mode="1",
     )
 
 

@@ -312,7 +312,7 @@
         <span id="titleText">Compass Rose - Live Mode</span>
         <span style="float: right; font-weight: 700;">
           <a href="/" style="color: inherit; text-decoration: underline; margin-right: 10px;">Monitor</a>
-          <a href="/plotter" style="color: inherit; text-decoration: underline;">Graficador</a>
+          <a href="/plotter" id="plotterLink" style="color: inherit; text-decoration: underline;">Graficador</a>
         </span>
       </div>
 
@@ -458,6 +458,16 @@
       let lastResetSeq = null;
 
       const socket = io();
+
+      try {
+        const host = (window.location && window.location.hostname) ? String(window.location.hostname).toLowerCase() : '';
+        const isLocal = host === '127.0.0.1' || host === 'localhost';
+        if (!isLocal) {
+          const a = document.getElementById('plotterLink');
+          if (a) a.href = '/plotter/viewer';
+        }
+      } catch (_) {
+      }
 
       function pad2(n) {
         return String(n).padStart(2, '0');
