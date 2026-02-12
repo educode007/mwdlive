@@ -259,6 +259,14 @@
         display: none;
       }
 
+      body[data-viewer-mode] .layout {
+        grid-template-columns: 1fr;
+      }
+
+      body[data-viewer-mode] .controls {
+        display: none !important;
+      }
+
       table {
         width: 100%;
         border-collapse: collapse;
