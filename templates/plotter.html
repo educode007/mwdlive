@@ -454,7 +454,11 @@
         if (!DESKTOP_INGEST_URL || !DESKTOP_INGEST_KEY) return;
         if (isViewer) return;
 
-        const url = String(DESKTOP_INGEST_URL).replace(/\/+$/, '') + '/api/ingest';
+        let url = String(DESKTOP_INGEST_URL).trim();
+        url = url.replace(/\/+$/, '');
+        if (!/\/api\/ingest$/i.test(url)) {
+          url = url + '/api/ingest';
+        }
 
         window.setInterval(() => {
           try {
