@@ -788,6 +788,20 @@ def _auth_ingest() -> bool:
     return token == expected
 
 
+@app.route("/api/build", methods=["GET"])
+def api_build():
+    branch = os.environ.get("RENDER_GIT_BRANCH") or "unknown"
+    commit = os.environ.get("RENDER_GIT_COMMIT") or "unknown"
+    service = os.environ.get("RENDER_SERVICE_NAME") or ""
+    return jsonify(
+        {
+            "branch": branch,
+            "commit": commit,
+            "service": service,
+        }
+    )
+
+
 @app.route("/api/state", methods=["GET"])
 def api_state():
     with ingest_lock:

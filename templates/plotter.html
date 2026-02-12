@@ -337,7 +337,7 @@
   <body data-desktop-ingest-url="{{ desktop_ingest_url|default('')|e }}" data-desktop-ingest-key="{{ desktop_ingest_key|default('')|e }}" data-viewer-mode="{{ viewer_mode|default('')|e }}">
     <div class="frame">
       <div class="titlebar">
-        <span>Graficador</span>
+        <span>Graficador <span id="buildInfo" style="font-weight: 700; color: #555;"></span></span>
         <span style="float: right; font-weight: 700;">
           <a href="/" style="margin-right: 10px;">Monitor</a>
           <a href="/plotter">Graficador</a>
@@ -1573,6 +1573,23 @@
             document.getElementById('saveLocal').disabled = true;
             document.getElementById('loadLocal').disabled = true;
             document.getElementById('resetAll').disabled = true;
+          } catch (_) {
+          }
+
+          try {
+            fetch('/api/build', { cache: 'no-store' })
+              .then((r) => (r && r.ok) ? r.json() : null)
+              .then((js) => {
+                const el = document.getElementById('buildInfo');
+                if (!el) return;
+                if (!js || typeof js !== 'object') return;
+                const b = js.branch ? String(js.branch) : 'unknown';
+                const c = js.commit ? String(js.commit) : 'unknown';
+                const short = c !== 'unknown' ? c.slice(0, 7) : c;
+                el.textContent = `(${b}@${short})`;
+              })
+              .catch(() => {
+              });
           } catch (_) {
           }
 
