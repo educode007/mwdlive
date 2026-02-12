@@ -304,6 +304,82 @@
       table.log tbody tr:hover {
         background: #fafafa;
       }
+
+      .cfg-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+
+      .cfg-overlay.open {
+        display: flex;
+      }
+
+      .cfg-panel {
+        width: min(640px, 92vw);
+        background: #f7f7f7;
+        border: 1px solid #c8c8c8;
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+        max-height: 86vh;
+        overflow: auto;
+      }
+
+      .cfg-title {
+        font-size: 18px;
+        font-weight: 800;
+        margin-bottom: 10px;
+      }
+
+      .cfg-row {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      @media (max-width: 720px) {
+        .cfg-row {
+          grid-template-columns: 120px 1fr;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .cfg-row {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .cfg-row label {
+        font-weight: 700;
+        color: #333;
+      }
+
+      .cfg-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .cfg-actions button {
+        font-weight: 800;
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid #c8c8c8;
+        background: #fff;
+        cursor: pointer;
+      }
+
+      .cfg-actions button.primary {
+        background: var(--green);
+        border-color: var(--green-border);
+      }
     </style>
   </head>
   <body>
@@ -313,6 +389,7 @@
         <span style="float: right; font-weight: 700;">
           <a href="/" style="color: inherit; text-decoration: underline; margin-right: 10px;">Monitor</a>
           <a href="/plotter" id="plotterLink" style="color: inherit; text-decoration: underline;">Graficador</a>
+          <a href="#" id="openConfig" style="color: inherit; text-decoration: underline; margin-left: 10px; display: none;">Config</a>
         </span>
       </div>
 
@@ -421,8 +498,124 @@
       </div>
     </div>
 
+    <div class="cfg-overlay" id="cfgOverlay">
+      <div class="cfg-panel">
+        <div class="cfg-title">Configuración</div>
+
+        <div class="cfg-row">
+          <label for="cfgPort">Puerto</label>
+          <div>
+            <select id="cfgPort" style="width: 100%; padding: 8px;"></select>
+            <div style="font-size: 12px; color: #555; margin-top: 4px;">Ej: COM3</div>
+          </div>
+        </div>
+
+        <div class="cfg-row">
+          <label for="cfgBaud">Baudrate</label>
+          <input id="cfgBaud" type="number" min="300" step="1" style="width: 100%; padding: 8px;" />
+        </div>
+
+        <div class="cfg-row">
+          <label for="cfgPumpThreshold">Umbral Pump On</label>
+          <input id="cfgPumpThreshold" type="number" step="1" style="width: 100%; padding: 8px;" />
+        </div>
+
+        <div class="cfg-row">
+          <label for="cfgPressureCode">Pressure</label>
+          <input id="cfgPressureCode" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+        <div class="cfg-row">
+          <label for="cfgIncCode">Inc</label>
+          <input id="cfgIncCode" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+        <div class="cfg-row">
+          <label for="cfgAzmCode">AZI</label>
+          <input id="cfgAzmCode" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+        <div class="cfg-row">
+          <label for="cfgMtfCode">MTF</label>
+          <input id="cfgMtfCode" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+        <div class="cfg-row">
+          <label for="cfgGtfCode">GTF</label>
+          <input id="cfgGtfCode" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+        <div class="cfg-row">
+          <label for="cfgMagfCode">MagF</label>
+          <input id="cfgMagfCode" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+        <div class="cfg-row">
+          <label for="cfgDipaCode">DipA</label>
+          <input id="cfgDipaCode" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+        <div class="cfg-row">
+          <label for="cfgTempCode">TmpW</label>
+          <input id="cfgTempCode" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+        <div class="cfg-row">
+          <label for="cfgGravCode">GrvW</label>
+          <input id="cfgGravCode" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+        <div class="cfg-row">
+          <label for="cfgShk1Code">Shk1</label>
+          <input id="cfgShk1Code" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+        <div class="cfg-row">
+          <label for="cfgVib1Code">Vib1</label>
+          <input id="cfgVib1Code" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+        <div class="cfg-row">
+          <label for="cfgBat2Code">Bat2</label>
+          <input id="cfgBat2Code" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+
+        <div class="cfg-row" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #d0d0d0;">
+          <label for="cfgIngestUrl">Render URL</label>
+          <input id="cfgIngestUrl" type="text" style="width: 100%; padding: 8px;" />
+        </div>
+
+        <div class="cfg-row">
+          <label for="cfgIngestKey">Render Key</label>
+          <input id="cfgIngestKey" type="password" style="width: 100%; padding: 8px;" />
+        </div>
+
+        <div class="cfg-row">
+          <label for="cfgIngestInterval">Intervalo (s)</label>
+          <input id="cfgIngestInterval" type="number" min="1" max="60" step="1" style="width: 100%; padding: 8px;" />
+        </div>
+
+        <div class="cfg-actions">
+          <button id="cfgCancel">Cerrar</button>
+          <button class="primary" id="cfgSave">Guardar</button>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
+      const openConfigEl = document.getElementById('openConfig');
+      const cfgOverlayEl = document.getElementById('cfgOverlay');
+      const cfgPortEl = document.getElementById('cfgPort');
+      const cfgBaudEl = document.getElementById('cfgBaud');
+      const cfgPumpThresholdEl = document.getElementById('cfgPumpThreshold');
+      const cfgPressureCodeEl = document.getElementById('cfgPressureCode');
+      const cfgIncCodeEl = document.getElementById('cfgIncCode');
+      const cfgAzmCodeEl = document.getElementById('cfgAzmCode');
+      const cfgMtfCodeEl = document.getElementById('cfgMtfCode');
+      const cfgGtfCodeEl = document.getElementById('cfgGtfCode');
+      const cfgMagfCodeEl = document.getElementById('cfgMagfCode');
+      const cfgDipaCodeEl = document.getElementById('cfgDipaCode');
+      const cfgTempCodeEl = document.getElementById('cfgTempCode');
+      const cfgGravCodeEl = document.getElementById('cfgGravCode');
+      const cfgShk1CodeEl = document.getElementById('cfgShk1Code');
+      const cfgVib1CodeEl = document.getElementById('cfgVib1Code');
+      const cfgBat2CodeEl = document.getElementById('cfgBat2Code');
+      const cfgIngestUrlEl = document.getElementById('cfgIngestUrl');
+      const cfgIngestKeyEl = document.getElementById('cfgIngestKey');
+      const cfgIngestIntervalEl = document.getElementById('cfgIngestInterval');
+      const cfgCancelEl = document.getElementById('cfgCancel');
+      const cfgSaveEl = document.getElementById('cfgSave');
+
       const statusEl = document.getElementById('status');
 
       const titleEl = document.getElementById('titleText');
@@ -465,8 +658,122 @@
         if (!isLocal) {
           const a = document.getElementById('plotterLink');
           if (a) a.href = '/plotter/viewer';
+          if (openConfigEl) openConfigEl.style.display = 'none';
+        } else {
+          if (openConfigEl) openConfigEl.style.display = 'inline';
         }
       } catch (_) {
+      }
+
+      function cfgOpen() {
+        if (!cfgOverlayEl) return;
+        cfgOverlayEl.classList.add('open');
+      }
+
+      function cfgClose() {
+        if (!cfgOverlayEl) return;
+        cfgOverlayEl.classList.remove('open');
+      }
+
+      async function loadPorts() {
+        try {
+          const r = await fetch('/api/serial/ports');
+          if (!r || !r.ok) return;
+          const js = await r.json();
+          const ports = (js && Array.isArray(js.ports)) ? js.ports : [];
+          if (cfgPortEl) cfgPortEl.innerHTML = '';
+          for (const p of ports) {
+            const opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = p;
+            if (cfgPortEl) cfgPortEl.appendChild(opt);
+          }
+        } catch (_) {
+        }
+      }
+
+      async function loadSerialConfig() {
+        try {
+          const r = await fetch('/api/config/serial');
+          if (!r || !r.ok) return;
+          const js = await r.json();
+          if (!js || typeof js !== 'object') return;
+          if (cfgPortEl) cfgPortEl.value = js.serial_port || '';
+          if (cfgBaudEl) cfgBaudEl.value = js.baudrate || 9600;
+          if (cfgPumpThresholdEl) cfgPumpThresholdEl.value = js.pump_on_threshold || 300;
+          if (cfgPressureCodeEl) cfgPressureCodeEl.value = js.pressure_code || '0121';
+          if (cfgIncCodeEl) cfgIncCodeEl.value = js.inc_code || '0713';
+          if (cfgAzmCodeEl) cfgAzmCodeEl.value = js.azm_code || '0715';
+          if (cfgMtfCodeEl) cfgMtfCodeEl.value = js.mtf_code || '0716';
+          if (cfgGtfCodeEl) cfgGtfCodeEl.value = js.gtf_code || '0717';
+          if (cfgMagfCodeEl) cfgMagfCodeEl.value = js.magf_code || '0732';
+          if (cfgDipaCodeEl) cfgDipaCodeEl.value = js.dipa_code || '0746';
+          if (cfgTempCodeEl) cfgTempCodeEl.value = js.temp_code || '0751';
+          if (cfgGravCodeEl) cfgGravCodeEl.value = js.grav_code || '0747';
+          if (cfgShk1CodeEl) cfgShk1CodeEl.value = js.shk1_code || '0736';
+          if (cfgVib1CodeEl) cfgVib1CodeEl.value = js.vib1_code || '0737';
+          if (cfgBat2CodeEl) cfgBat2CodeEl.value = js.bat2_code || '0735';
+          if (cfgIngestUrlEl) cfgIngestUrlEl.value = js.ingest_url || '';
+          if (cfgIngestKeyEl) cfgIngestKeyEl.value = js.ingest_key || '';
+          if (cfgIngestIntervalEl) cfgIngestIntervalEl.value = js.ingest_interval_seconds || 5;
+        } catch (_) {
+        }
+      }
+
+      if (openConfigEl) {
+        openConfigEl.addEventListener('click', async (e) => {
+          e.preventDefault();
+          cfgOpen();
+          await loadPorts();
+          await loadSerialConfig();
+        });
+      }
+
+      if (cfgCancelEl) {
+        cfgCancelEl.addEventListener('click', () => {
+          cfgClose();
+        });
+      }
+
+      if (cfgOverlayEl) {
+        cfgOverlayEl.addEventListener('click', (e) => {
+          if (e.target === cfgOverlayEl) cfgClose();
+        });
+      }
+
+      if (cfgSaveEl) {
+        cfgSaveEl.addEventListener('click', async () => {
+          try {
+            const payload = {
+              serial_port: (cfgPortEl && cfgPortEl.value) ? String(cfgPortEl.value) : null,
+              baudrate: cfgBaudEl ? Number(cfgBaudEl.value || 9600) : 9600,
+              pump_on_threshold: cfgPumpThresholdEl ? Number(cfgPumpThresholdEl.value || 300) : 300,
+              pressure_code: cfgPressureCodeEl ? String(cfgPressureCodeEl.value || '').trim() : '0121',
+              inc_code: cfgIncCodeEl ? String(cfgIncCodeEl.value || '').trim() : '0713',
+              azm_code: cfgAzmCodeEl ? String(cfgAzmCodeEl.value || '').trim() : '0715',
+              mtf_code: cfgMtfCodeEl ? String(cfgMtfCodeEl.value || '').trim() : '0716',
+              gtf_code: cfgGtfCodeEl ? String(cfgGtfCodeEl.value || '').trim() : '0717',
+              magf_code: cfgMagfCodeEl ? String(cfgMagfCodeEl.value || '').trim() : '0732',
+              dipa_code: cfgDipaCodeEl ? String(cfgDipaCodeEl.value || '').trim() : '0746',
+              temp_code: cfgTempCodeEl ? String(cfgTempCodeEl.value || '').trim() : '0751',
+              grav_code: cfgGravCodeEl ? String(cfgGravCodeEl.value || '').trim() : '0747',
+              shk1_code: cfgShk1CodeEl ? String(cfgShk1CodeEl.value || '').trim() : '0736',
+              vib1_code: cfgVib1CodeEl ? String(cfgVib1CodeEl.value || '').trim() : '0737',
+              bat2_code: cfgBat2CodeEl ? String(cfgBat2CodeEl.value || '').trim() : '0735',
+              ingest_url: cfgIngestUrlEl ? String(cfgIngestUrlEl.value || '').trim() : '',
+              ingest_key: cfgIngestKeyEl ? String(cfgIngestKeyEl.value || '') : '',
+              ingest_interval_seconds: cfgIngestIntervalEl ? Number(cfgIngestIntervalEl.value || 5) : 5,
+            };
+
+            await fetch('/api/config/serial', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+          } catch (_) {
+          }
+          cfgClose();
+        });
       }
 
       function pad2(n) {
