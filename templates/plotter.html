@@ -264,6 +264,21 @@
             <div class="panel">
               <div style="font-weight: 800; margin-bottom: 6px;">Pegar Real</div>
               <textarea id="realInput" placeholder="0,00\t0,00\t0,00\n380,37\t1,00\t280,70\n..."></textarea>
+              <div class="btnbar" style="margin-top: 8px; align-items: flex-end;">
+                <div class="field">
+                  <span>MD</span>
+                  <input id="realMD" type="number" step="0.01" placeholder="m" />
+                </div>
+                <div class="field">
+                  <span>Inc</span>
+                  <input id="realInc" type="number" step="0.01" placeholder="deg" />
+                </div>
+                <div class="field">
+                  <span>Azm</span>
+                  <input id="realAzm" type="number" step="0.01" placeholder="deg" />
+                </div>
+                <button id="addRealPoint">Agregar punto</button>
+              </div>
               <div class="btnbar" style="margin-top: 8px;">
                 <button class="primary" id="loadReal">Cargar Real</button>
                 <button id="clearReal">Limpiar</button>
@@ -350,6 +365,11 @@
       const proposalInputEl = document.getElementById('proposalInput');
       const errorEl = document.getElementById('error');
       const vspEl = document.getElementById('vsp');
+
+      const realMDEl = document.getElementById('realMD');
+      const realIncEl = document.getElementById('realInc');
+      const realAzmEl = document.getElementById('realAzm');
+      const addRealPointBtn = document.getElementById('addRealPoint');
 
       const surveysBodyEl = document.getElementById('surveysBody');
       const showRealBtn = document.getElementById('showReal');
@@ -519,6 +539,30 @@
 
       function setError(msg) {
         errorEl.textContent = msg || '';
+      }
+
+      function fmtNum2(v) {
+        if (!Number.isFinite(v)) return '';
+        return v.toFixed(2);
+      }
+
+      function appendRealPoint(md, inc, azm) {
+        if (!Number.isFinite(md) || !Number.isFinite(inc) || !Number.isFinite(azm)) {
+          setError('Agregar punto: valores inválidos.');
+          return;
+        }
+        const line = `${fmtNum2(md)}\t${fmtNum2(inc)}\t${fmtNum2(azm)}`;
+        const prev = realInputEl.value || '';
+        const next = prev.trim() ? (prev.replace(/\s*$/, '') + `\n${line}\n`) : (`${line}\n`);
+        realInputEl.value = next;
+        try {
+          loadDataset('real', realInputEl.value);
+          setActiveDataset('real');
+          setError('');
+        } catch (e) {
+          setError(String(e && e.message ? e.message : e));
+        }
+        saveState();
       }
 
       function fmtDist(d) {
@@ -1328,6 +1372,13 @@
         saveState();
         startDesktopIngestLoop();
       })();
+
+      addRealPointBtn.addEventListener('click', () => {
+        const md = Number(realMDEl.value);
+        const inc = Number(realIncEl.value);
+        const azm = Number(realAzmEl.value);
+        appendRealPoint(md, inc, azm);
+      });
 
       realInputEl.addEventListener('input', scheduleSave);
       proposalInputEl.addEventListener('input', scheduleSave);
