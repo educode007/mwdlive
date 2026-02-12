@@ -451,14 +451,9 @@
       }
 
       function startDesktopIngestLoop() {
-        if (!DESKTOP_INGEST_URL || !DESKTOP_INGEST_KEY) return;
         if (isViewer) return;
 
-        let url = String(DESKTOP_INGEST_URL).trim();
-        url = url.replace(/\/+$/, '');
-        if (!/\/api\/ingest$/i.test(url)) {
-          url = url + '/api/ingest';
-        }
+        const url = '/api/plotter/publish';
 
         window.setInterval(() => {
           try {
@@ -467,11 +462,18 @@
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DESKTOP_INGEST_KEY}`,
               },
               body: JSON.stringify(payload),
-            }).catch(() => {
-            });
+            })
+              .then((r) => (r && r.ok) ? r.json() : null)
+              .then((js) => {
+                if (!js) return;
+                if (js.ok === false) {
+                  setError(`publish error: ${js.error ? String(js.error) : 'unknown'}`);
+                }
+              })
+              .catch(() => {
+              });
           } catch (_) {
           }
         }, 5000);

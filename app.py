@@ -345,6 +345,25 @@ def plotter_viewer():
     )
 
 
+@app.route("/api/plotter/publish", methods=["POST"])
+def api_plotter_publish():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return ("Bad Request", 400)
+
+    url = _cfg_str("ingest_url", "").strip()
+    key = _cfg_str("ingest_key", "").strip()
+    if not url or not key:
+        return jsonify({"ok": False, "error": "ingest_url/ingest_key no configurados"}), 400
+
+    url = url.rstrip("/")
+    if not url.lower().endswith("/api/ingest"):
+        url = url + "/api/ingest"
+
+    ok, err = _publish_to_render(url, key, data)
+    return jsonify({"ok": bool(ok), "error": err})
+
+
 def _user_data_dir() -> str:
     root = os.environ.get("MWDMONITOR_USERDATA")
     if root:
