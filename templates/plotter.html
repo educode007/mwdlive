@@ -85,11 +85,28 @@
       }
 
       .viewer-toolbar {
-        display: flex;
-        gap: 10px;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto;
+        gap: 6px 10px;
         align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
+      }
+
+      .viewer-toolbar .viewer-plot-switch {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+      .viewer-toolbar .viewer-actions {
+        grid-column: 1 / -1;
+        grid-row: 2;
+      }
+
+      .viewer-toolbar .viewer-hint {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+        white-space: nowrap;
       }
 
       body[data-viewer-mode] .viewer-right-panel {
@@ -430,13 +447,13 @@
                 <button id="viewerShowTop" class="active">Top</button>
                 <button id="viewerShowVS">VS</button>
               </div>
-              <div class="btnbar">
+              <span id="measureHint" class="hint viewer-hint"></span>
+              <div class="btnbar viewer-actions">
                 <button id="measureToggle">Medir</button>
                 <button id="clearMeasures">Borrar medidas</button>
                 <button id="dlTop">Descargar Top (PNG)</button>
                 <button id="dlVS">Descargar VS (PNG)</button>
               </div>
-              <span id="measureHint" class="hint"></span>
             </div>
             <div id="view-top" class="view active"><div id="plotTop" class="plot"></div></div>
             <div id="view-vs" class="view active hidden"><div id="plotVS" class="plot"></div></div>
