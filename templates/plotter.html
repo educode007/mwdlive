@@ -77,6 +77,18 @@
         min-height: 0;
       }
 
+      .viewer-plot-switch {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .viewer-plot-switch button.active {
+        background: var(--green);
+        border-color: var(--green-border);
+      }
+
       .panel {
         background: var(--panel);
         border: 1px solid var(--border);
@@ -205,6 +217,11 @@
       body[data-viewer-mode] #view-top,
       body[data-viewer-mode] #view-vs {
         display: block;
+      }
+
+      body[data-viewer-mode] #view-top.hidden,
+      body[data-viewer-mode] #view-vs.hidden {
+        display: none;
       }
 
       table {
@@ -389,28 +406,22 @@
             </div>
           </div>
 
-          <div class="plots-split">
-            <div class="panel">
-              <div class="btnbar" style="margin-bottom: 6px; justify-content: space-between;">
-                <div class="btnbar">
-                  <button id="measureToggle">Medir</button>
-                  <button id="clearMeasures">Borrar medidas</button>
-                  <button id="dlTop">Descargar Top (PNG)</button>
-                </div>
-                <span id="measureHint" class="hint" style="margin-left: 6px;"></span>
+          <div class="panel">
+            <div class="btnbar" style="margin-bottom: 6px; justify-content: space-between;">
+              <div class="viewer-plot-switch">
+                <button id="viewerShowTop" class="active">Top</button>
+                <button id="viewerShowVS">VS</button>
               </div>
-              <div id="view-top" class="view active"><div id="plotTop" class="plot split"></div></div>
+              <span id="measureHint" class="hint" style="margin-left: 6px;"></span>
             </div>
-
-            <div class="panel">
-              <div class="btnbar" style="margin-bottom: 6px; justify-content: space-between;">
-                <div class="hint">VS</div>
-                <div class="btnbar">
-                  <button id="dlVS">Descargar VS (PNG)</button>
-                </div>
-              </div>
-              <div id="view-vs" class="view active"><div id="plotVS" class="plot split"></div></div>
+            <div class="btnbar" style="margin-bottom: 6px;">
+              <button id="measureToggle">Medir</button>
+              <button id="clearMeasures">Borrar medidas</button>
+              <button id="dlTop">Descargar Top (PNG)</button>
+              <button id="dlVS">Descargar VS (PNG)</button>
             </div>
+            <div id="view-top" class="view active"><div id="plotTop" class="plot"></div></div>
+            <div id="view-vs" class="view active hidden"><div id="plotVS" class="plot"></div></div>
           </div>
         </div>
         {% else %}
@@ -511,25 +522,46 @@
       let lastViewerSeq = null;
       let lastViewerTs = null;
 
+      let viewerActivePlot = 'top';
+
       function viewerResizePlotsDeferred() {
         if (!isViewer) return;
         try {
           window.requestAnimationFrame(() => {
             try {
-              Plotly.Plots.resize(plotTopEl);
-              Plotly.Plots.resize(plotVSEl);
+              if (viewerActivePlot === 'top') Plotly.Plots.resize(plotTopEl);
+              if (viewerActivePlot === 'vs') Plotly.Plots.resize(plotVSEl);
             } catch (_) {
             }
             window.setTimeout(() => {
               try {
-                Plotly.Plots.resize(plotTopEl);
-                Plotly.Plots.resize(plotVSEl);
+                if (viewerActivePlot === 'top') Plotly.Plots.resize(plotTopEl);
+                if (viewerActivePlot === 'vs') Plotly.Plots.resize(plotVSEl);
               } catch (_) {
               }
             }, 60);
           });
         } catch (_) {
         }
+      }
+
+      function setViewerPlot(which) {
+        if (!isViewer) return;
+        viewerActivePlot = which === 'vs' ? 'vs' : 'top';
+        try {
+          const topBtn = document.getElementById('viewerShowTop');
+          const vsBtn = document.getElementById('viewerShowVS');
+          if (topBtn) topBtn.classList.toggle('active', viewerActivePlot === 'top');
+          if (vsBtn) vsBtn.classList.toggle('active', viewerActivePlot === 'vs');
+
+          const topView = document.getElementById('view-top');
+          const vsView = document.getElementById('view-vs');
+          if (topView) topView.classList.toggle('hidden', viewerActivePlot !== 'top');
+          if (vsView) vsView.classList.toggle('hidden', viewerActivePlot !== 'vs');
+        } catch (_) {
+        }
+        renderPlots();
+        viewerResizePlotsDeferred();
       }
 
       window.addEventListener('error', (ev) => {
@@ -1285,10 +1317,12 @@
           topLayout.yaxis.range = topKeep.y;
         }
 
-        try {
-          Plotly.react(plotTopEl, tracesTop, topLayout, { responsive: true, scrollZoom: true });
-        } catch (e) {
-          setError(`Top plot error: ${String(e && e.message ? e.message : e)}`);
+        if (!isViewer || viewerActivePlot === 'top') {
+          try {
+            Plotly.react(plotTopEl, tracesTop, topLayout, { responsive: true, scrollZoom: true });
+          } catch (e) {
+            setError(`Top plot error: ${String(e && e.message ? e.message : e)}`);
+          }
         }
 
         const vsLayout = {
@@ -1336,10 +1370,12 @@
           }
         }
 
-        try {
-          Plotly.react(plotVSEl, tracesVS, vsLayout, { responsive: true, scrollZoom: true });
-        } catch (e) {
-          setError(`VS plot error: ${String(e && e.message ? e.message : e)}`);
+        if (!isViewer || viewerActivePlot === 'vs') {
+          try {
+            Plotly.react(plotVSEl, tracesVS, vsLayout, { responsive: true, scrollZoom: true });
+          } catch (e) {
+            setError(`VS plot error: ${String(e && e.message ? e.message : e)}`);
+          }
         }
 
         if (!plotVSEl.dataset.plotlyErrorBound) {
@@ -1536,6 +1572,16 @@
           window.addEventListener('resize', () => {
             viewerResizePlotsDeferred();
           });
+
+          try {
+            const topBtn = document.getElementById('viewerShowTop');
+            const vsBtn = document.getElementById('viewerShowVS');
+            if (topBtn) topBtn.addEventListener('click', () => setViewerPlot('top'));
+            if (vsBtn) vsBtn.addEventListener('click', () => setViewerPlot('vs'));
+          } catch (_) {
+          }
+
+          setViewerPlot('top');
         } else {
           restoreState();
         }
