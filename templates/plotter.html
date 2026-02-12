@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Graficador</title>
+    <title>Plot</title>
     <link rel="icon" href="data:," />
     <style>
       :root {
@@ -345,10 +345,10 @@
   <body data-desktop-ingest-url="{{ desktop_ingest_url|default('')|e }}" data-desktop-ingest-key="{{ desktop_ingest_key|default('')|e }}" data-viewer-mode="{{ viewer_mode|default('')|e }}">
     <div class="frame">
       <div class="titlebar">
-        <span>Graficador <span id="buildInfo" style="font-weight: 700; color: #555;"></span></span>
+        <span>Plot <span id="buildInfo" style="font-weight: 700; color: #555;"></span></span>
         <span style="float: right; font-weight: 700;">
           <a href="/" style="margin-right: 10px;">Monitor</a>
-          <a href="/plotter">Graficador</a>
+          <a href="/plotter">Plot</a>
         </span>
       </div>
 
@@ -459,8 +459,8 @@
               <div class="btnbar viewer-actions">
                 <button id="measureToggle">Medir</button>
                 <button id="clearMeasures">Borrar medidas</button>
-                <button id="dlTop">Descargar Top (PNG)</button>
-                <button id="dlVS">Descargar VS (PNG)</button>
+                <button id="dlTop">Descargar Top (PDF)</button>
+                <button id="dlVS">Descargar VS (PDF)</button>
               </div>
             </div>
             <div id="view-top" class="view active"><div id="plotTop" class="plot"></div></div>
@@ -478,8 +478,8 @@
             <div class="btnbar" style="margin-bottom: 6px;">
               <button id="measureToggle">Medir</button>
               <button id="clearMeasures">Borrar medidas</button>
-              <button id="dlTop">Descargar Top (PNG)</button>
-              <button id="dlVS">Descargar VS (PNG)</button>
+              <button id="dlTop">Descargar Top (PDF)</button>
+              <button id="dlVS">Descargar VS (PDF)</button>
               <span id="measureHint" class="hint" style="margin-left: 6px;"></span>
             </div>
             <div class="hint">
@@ -522,6 +522,7 @@
     </div>
 
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
       const realInputEl = document.getElementById('realInput');
@@ -690,23 +691,36 @@
       const urlParams = new URLSearchParams(window.location.search || '');
       const isViewer = (urlParams.get('viewer') === '1') || ((document.body && document.body.dataset && document.body.dataset.viewerMode) ? String(document.body.dataset.viewerMode) === '1' : false);
 
-      function downloadPlot(el, filename) {
+      async function downloadPlotPdf(el, filename) {
         try {
-          if (!el) return;
-          Plotly.downloadImage(el, {
-            format: 'png',
-            filename: filename,
-            width: 1600,
-            height: 900,
-            scale: 2,
-          });
+          const w = Math.max(900, (el && el.clientWidth) ? el.clientWidth : 900);
+          const h = Math.max(650, (el && el.clientHeight) ? el.clientHeight : 650);
+          const dataUrl = await Plotly.toImage(el, { format: 'png', width: w, height: h, scale: 2 });
+          const jsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : null;
+          if (!jsPDF) return;
+
+          const doc = new jsPDF({ orientation: w >= h ? 'l' : 'p', unit: 'pt', format: 'a4' });
+          const pageW = doc.internal.pageSize.getWidth();
+          const pageH = doc.internal.pageSize.getHeight();
+
+          const margin = 24;
+          const maxW = pageW - margin * 2;
+          const maxH = pageH - margin * 2;
+          const scale = Math.min(maxW / w, maxH / h);
+          const imgW = w * scale;
+          const imgH = h * scale;
+          const x = (pageW - imgW) / 2;
+          const y = (pageH - imgH) / 2;
+
+          doc.addImage(dataUrl, 'PNG', x, y, imgW, imgH);
+          doc.save(`${filename}.pdf`);
         } catch (e) {
           setError(`download error: ${String(e && e.message ? e.message : e)}`);
         }
       }
 
-      dlTopBtn.addEventListener('click', () => downloadPlot(plotTopEl, 'mwd_top'));
-      dlVSBtn.addEventListener('click', () => downloadPlot(plotVSEl, 'mwd_vs'));
+      dlTopBtn.addEventListener('click', () => downloadPlotPdf(plotTopEl, 'mwd_top'));
+      dlVSBtn.addEventListener('click', () => downloadPlotPdf(plotVSEl, 'mwd_vs'));
 
       function saveState() {
         if (isViewer) return;
