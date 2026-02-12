@@ -84,6 +84,24 @@
         flex-wrap: wrap;
       }
 
+      .viewer-toolbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+
+      body[data-viewer-mode] .viewer-right-panel {
+        display: flex;
+        flex-direction: column;
+      }
+
+      body[data-viewer-mode] .viewer-right-panel .view.active {
+        flex: 1;
+        min-height: 0;
+      }
+
       .viewer-plot-switch button.active {
         background: var(--green);
         border-color: var(--green-border);
@@ -406,19 +424,19 @@
             </div>
           </div>
 
-          <div class="panel">
-            <div class="btnbar" style="margin-bottom: 6px; justify-content: space-between;">
+          <div class="panel viewer-right-panel">
+            <div class="viewer-toolbar" style="margin-bottom: 6px;">
               <div class="viewer-plot-switch">
                 <button id="viewerShowTop" class="active">Top</button>
                 <button id="viewerShowVS">VS</button>
               </div>
-              <span id="measureHint" class="hint" style="margin-left: 6px;"></span>
-            </div>
-            <div class="btnbar" style="margin-bottom: 6px;">
-              <button id="measureToggle">Medir</button>
-              <button id="clearMeasures">Borrar medidas</button>
-              <button id="dlTop">Descargar Top (PNG)</button>
-              <button id="dlVS">Descargar VS (PNG)</button>
+              <div class="btnbar">
+                <button id="measureToggle">Medir</button>
+                <button id="clearMeasures">Borrar medidas</button>
+                <button id="dlTop">Descargar Top (PNG)</button>
+                <button id="dlVS">Descargar VS (PNG)</button>
+              </div>
+              <span id="measureHint" class="hint"></span>
             </div>
             <div id="view-top" class="view active"><div id="plotTop" class="plot"></div></div>
             <div id="view-vs" class="view active hidden"><div id="plotVS" class="plot"></div></div>
