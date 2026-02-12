@@ -399,6 +399,9 @@
 
       let rmbPanning = false;
 
+      let lastViewerSeq = null;
+      let lastViewerTs = null;
+
       window.addEventListener('error', (ev) => {
         try {
           const msg = ev && ev.message ? ev.message : 'Unknown error';
@@ -780,6 +783,15 @@
         try {
           if (!payload || typeof payload !== 'object') return;
 
+          if (payload.seq !== undefined && payload.seq !== null) {
+            const s = Number(payload.seq);
+            if (Number.isFinite(s)) lastViewerSeq = s;
+          }
+          if (payload.ts !== undefined && payload.ts !== null) {
+            const t = Number(payload.ts);
+            if (Number.isFinite(t)) lastViewerTs = t;
+          }
+
           if (payload.vsp !== undefined && payload.vsp !== null && Number.isFinite(Number(payload.vsp))) {
             vspEl.value = Number(payload.vsp).toFixed(2);
           }
@@ -803,8 +815,53 @@
           recomputeVSPIfAuto();
           renderTable();
           renderPlots();
+
+          if (isViewer) {
+            try {
+              if (document.getElementById('view-top') && document.getElementById('view-top').classList.contains('active')) {
+                Plotly.Plots.resize(plotTopEl);
+              }
+              if (document.getElementById('view-vs') && document.getElementById('view-vs').classList.contains('active')) {
+                Plotly.Plots.resize(plotVSEl);
+              }
+            } catch (_) {
+            }
+          }
         } catch (e) {
           setError(`viewer update error: ${String(e && e.message ? e.message : e)}`);
+        }
+      }
+
+      function setActiveView(view) {
+        try {
+          document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === view));
+          document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+          const el = document.getElementById(`view-${view}`);
+          if (el) el.classList.add('active');
+          if (view === 'top') Plotly.Plots.resize(plotTopEl);
+          if (view === 'vs') Plotly.Plots.resize(plotVSEl);
+        } catch (_) {
+        }
+      }
+
+      async function viewerPollOnce() {
+        try {
+          const r = await fetch('/api/state', { cache: 'no-store' });
+          if (!r || !r.ok) return;
+          const data = await r.json();
+          if (!data || typeof data !== 'object') return;
+
+          const nextSeq = (data.seq !== undefined && data.seq !== null) ? Number(data.seq) : null;
+          const nextTs = (data.ts !== undefined && data.ts !== null) ? Number(data.ts) : null;
+          const hasSeq = Number.isFinite(nextSeq);
+          const hasTs = Number.isFinite(nextTs);
+
+          const seqChanged = hasSeq && (lastViewerSeq === null || nextSeq !== lastViewerSeq);
+          const tsChanged = hasTs && (lastViewerTs === null || nextTs !== lastViewerTs);
+          if (seqChanged || tsChanged || lastViewerSeq === null) {
+            applyIngestState(data);
+          }
+        } catch (_) {
         }
       }
 
@@ -1345,9 +1402,17 @@
             if (typeof io === 'function') {
               const socket = io();
               socket.on('state_update', (data) => applyIngestState(data));
+              socket.on('connect_error', () => {
+                setError('viewer: socket connect_error (usando polling)');
+              });
             }
           } catch (_) {
           }
+
+          setActiveView('top');
+          window.setInterval(() => {
+            viewerPollOnce();
+          }, 2500);
         } else {
           restoreState();
         }
