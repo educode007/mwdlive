@@ -55,6 +55,20 @@
         box-sizing: border-box;
       }
 
+      .workspace-split {
+        display: grid;
+        grid-template-columns: 420px 1fr;
+        gap: 10px;
+        height: 100%;
+      }
+
+      .plots-split {
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+        gap: 10px;
+        height: 100%;
+      }
+
       .panel {
         background: var(--panel);
         border: 1px solid var(--border);
@@ -160,6 +174,10 @@
         min-height: 520px;
       }
 
+      .plot.split {
+        min-height: 260px;
+      }
+
       table {
         width: 100%;
         border-collapse: collapse;
@@ -194,6 +212,10 @@
       .table-wrap {
         height: calc(100vh - 220px);
         overflow: auto;
+      }
+
+      .table-wrap.left {
+        height: calc(100vh - 170px);
       }
 
       .dataset-pill {
@@ -306,6 +328,63 @@
           </div>
         </div>
 
+        {% if viewer_mode %}
+        <div class="workspace-split">
+          <div class="panel" style="padding: 0; overflow: hidden;">
+            <div id="view-surveys" class="view active">
+              <div class="btnbar" style="padding: 10px; border-bottom: 1px solid var(--border); justify-content: space-between;">
+                <div class="btnbar">
+                  <button id="showReal" class="primary">Tabla Real</button>
+                  <button id="showProposal">Tabla Proposal</button>
+                </div>
+                <div class="hint">Surveys</div>
+              </div>
+              <div class="table-wrap left">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>No</th>
+                      <th>MD</th>
+                      <th>Inc</th>
+                      <th>Azm</th>
+                      <th>NS</th>
+                      <th>EW</th>
+                      <th>TVD</th>
+                      <th>VS</th>
+                      <th>DLS</th>
+                    </tr>
+                  </thead>
+                  <tbody id="surveysBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="plots-split">
+            <div class="panel">
+              <div class="btnbar" style="margin-bottom: 6px; justify-content: space-between;">
+                <div class="btnbar">
+                  <button id="measureToggle">Medir</button>
+                  <button id="clearMeasures">Borrar medidas</button>
+                  <button id="dlTop">Descargar Top (PNG)</button>
+                </div>
+                <span id="measureHint" class="hint" style="margin-left: 6px;"></span>
+              </div>
+              <div id="view-top" class="view active"><div id="plotTop" class="plot split"></div></div>
+            </div>
+
+            <div class="panel">
+              <div class="btnbar" style="margin-bottom: 6px; justify-content: space-between;">
+                <div class="hint">VS</div>
+                <div class="btnbar">
+                  <button id="dlVS">Descargar VS (PNG)</button>
+                </div>
+              </div>
+              <div id="view-vs" class="view active"><div id="plotVS" class="plot split"></div></div>
+            </div>
+          </div>
+        </div>
+        {% else %}
         <div class="workspace">
           <div class="panel">
             <div class="tabs">
@@ -355,6 +434,7 @@
             <div id="view-vs" class="view"><div id="plotVS" class="plot"></div></div>
           </div>
         </div>
+        {% endif %}
       </div>
     </div>
 
@@ -818,12 +898,8 @@
 
           if (isViewer) {
             try {
-              if (document.getElementById('view-top') && document.getElementById('view-top').classList.contains('active')) {
-                Plotly.Plots.resize(plotTopEl);
-              }
-              if (document.getElementById('view-vs') && document.getElementById('view-vs').classList.contains('active')) {
-                Plotly.Plots.resize(plotVSEl);
-              }
+              Plotly.Plots.resize(plotTopEl);
+              Plotly.Plots.resize(plotVSEl);
             } catch (_) {
             }
           }
@@ -1409,7 +1485,6 @@
           } catch (_) {
           }
 
-          setActiveView('top');
           window.setInterval(() => {
             viewerPollOnce();
           }, 2500);

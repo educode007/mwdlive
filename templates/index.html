@@ -925,6 +925,10 @@
         el.textContent = v === null || v === undefined ? '—' : String(v);
       }
 
+      function hasField(obj, key) {
+        return obj && Object.prototype.hasOwnProperty.call(obj, key);
+      }
+
       socket.on('connect', () => {
         statusEl.textContent = 'Conectado';
       });
@@ -1025,45 +1029,53 @@
 
         titleEl.textContent = `${s.title || 'Compass Rose'} - Radio Network ID: ${s.network_id || '—'}`;
 
-        setText(pressureEl, (s.pressure_psi !== undefined && s.pressure_psi !== null) ? `${s.pressure_psi} PSI` : null);
-
-        setText(pdtEl, fmtHMS(s.pump_down_seconds));
-        setText(uptEl, fmtHMS(s.uptime_seconds));
-
-        pumpEl.textContent = s.pump_on ? 'Pump On' : 'Pump Off';
-        pumpEl.classList.toggle('pump-off', !s.pump_on);
-
-        if (s.bat2_on === true) {
-          bat2El.textContent = 'ON';
-          bat2El.classList.add('bat-on');
-        } else if (s.bat2_on === false) {
-          bat2El.textContent = 'OFF';
-          bat2El.classList.remove('bat-on');
-        } else {
-          setText(bat2El, s.bat2_on);
+        if (hasField(s, 'pressure_psi')) {
+          setText(pressureEl, (s.pressure_psi !== undefined && s.pressure_psi !== null) ? `${s.pressure_psi} PSI` : null);
         }
 
-        if (s.render_publish_ok === true) {
-          renderStatusEl.textContent = 'OK';
-        } else if (s.render_publish_ok === false) {
-          renderStatusEl.textContent = `ERR${s.render_publish_error ? ': ' + String(s.render_publish_error) : ''}`;
-        } else {
-          renderStatusEl.textContent = 'OFF';
+        if (hasField(s, 'pump_down_seconds')) setText(pdtEl, fmtHMS(s.pump_down_seconds));
+        if (hasField(s, 'uptime_seconds')) setText(uptEl, fmtHMS(s.uptime_seconds));
+
+        if (hasField(s, 'pump_on')) {
+          pumpEl.textContent = s.pump_on ? 'Pump On' : 'Pump Off';
+          pumpEl.classList.toggle('pump-off', !s.pump_on);
         }
 
-        setText(shk1El, s.shk1);
-        setText(vib1El, s.vib1);
-        setBoolPill(gravEl, s.grav);
-        setText(magfEl, s.magf);
-        setBoolPill(dipaEl, s.dipa);
-        setBoolPill(tempEl, s.temp);
+        if (hasField(s, 'bat2_on')) {
+          if (s.bat2_on === true) {
+            bat2El.textContent = 'ON';
+            bat2El.classList.add('bat-on');
+          } else if (s.bat2_on === false) {
+            bat2El.textContent = 'OFF';
+            bat2El.classList.remove('bat-on');
+          } else {
+            setText(bat2El, s.bat2_on);
+          }
+        }
 
-        setText(incEl, s.inc);
-        setText(azmEl, s.azm);
+        if (hasField(s, 'render_publish_ok')) {
+          if (s.render_publish_ok === true) {
+            renderStatusEl.textContent = 'OK';
+          } else if (s.render_publish_ok === false) {
+            renderStatusEl.textContent = `ERR${s.render_publish_error ? ': ' + String(s.render_publish_error) : ''}`;
+          } else {
+            renderStatusEl.textContent = 'OFF';
+          }
+        }
 
-        centerLabelEl.textContent = s.center_label || 'gTFA';
-        setText(centerValueEl, s.center_value);
-        centerCounterEl.textContent = fmtMS(s.center_counter_seconds);
+        if (hasField(s, 'shk1')) setText(shk1El, s.shk1);
+        if (hasField(s, 'vib1')) setText(vib1El, s.vib1);
+        if (hasField(s, 'grav')) setBoolPill(gravEl, s.grav);
+        if (hasField(s, 'magf')) setText(magfEl, s.magf);
+        if (hasField(s, 'dipa')) setBoolPill(dipaEl, s.dipa);
+        if (hasField(s, 'temp')) setBoolPill(tempEl, s.temp);
+
+        if (hasField(s, 'inc')) setText(incEl, s.inc);
+        if (hasField(s, 'azm')) setText(azmEl, s.azm);
+
+        if (hasField(s, 'center_label')) centerLabelEl.textContent = s.center_label || 'gTFA';
+        if (hasField(s, 'center_value')) setText(centerValueEl, s.center_value);
+        if (hasField(s, 'center_counter_seconds')) centerCounterEl.textContent = fmtMS(s.center_counter_seconds);
 
         if (s.tfa_tick !== undefined && s.tfa_tick !== null) {
           const tick = Number(s.tfa_tick);
