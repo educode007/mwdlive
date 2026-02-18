@@ -78,7 +78,22 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        margin: 4px 0;
+        margin: 0 !important;
+        width: 70%;
+        max-width: 170px;
+        min-width: 140px;
+        box-sizing: border-box;
+        align-self: center;
+      }
+
+      .left > div {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .left .stats {
+        margin-bottom: 4px;
       }
 
       .pill .name {
@@ -248,63 +263,6 @@
         color: #444;
       }
 
-      .log-panel {
-        margin-top: 10px;
-        background: var(--panel);
-        border: 1px solid #c8c8c8;
-        border-radius: 12px;
-        padding: 10px;
-        box-sizing: border-box;
-      }
-
-      .log-panel .hdr {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        margin-bottom: 8px;
-      }
-
-      .log-panel .hdr .title {
-        font-weight: 800;
-        color: #333;
-      }
-
-      .log-table-wrap {
-        height: calc(100vh - 290px);
-        overflow: auto;
-        background: #fff;
-        border: 1px solid #d0d0d0;
-        border-radius: 10px;
-      }
-
-      table.log {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 12px;
-      }
-
-      table.log thead th {
-        position: sticky;
-        top: 0;
-        background: #f5f5f5;
-        z-index: 1;
-        text-align: left;
-        padding: 6px 8px;
-        border-bottom: 1px solid #e0e0e0;
-        white-space: nowrap;
-      }
-
-      table.log tbody td {
-        padding: 6px 8px;
-        border-bottom: 1px solid #f0f0f0;
-        white-space: nowrap;
-      }
-
-      table.log tbody tr:hover {
-        background: #fafafa;
-      }
-
       .cfg-overlay {
         position: fixed;
         inset: 0;
@@ -389,6 +347,7 @@
         <span style="float: right; font-weight: 700;">
           <a href="/" style="color: inherit; text-decoration: underline; margin-right: 10px;">Monitor</a>
           <a href="/plotter" id="plotterLink" style="color: inherit; text-decoration: underline;">Plot</a>
+          <a href="/anticollision" id="anticollisionLink" style="color: inherit; text-decoration: underline; margin-left: 10px;">Anticollision</a>
           <a href="#" id="openConfig" style="color: inherit; text-decoration: underline; margin-left: 10px; display: none;">Config</a>
         </span>
       </div>
@@ -406,13 +365,13 @@
               <div class="time" id="shk1t">—</div>
             </div>
 
-            <div class="pill" style="margin-top: 12px;">
+            <div class="pill">
               <div class="name">VIB1</div>
               <div class="val" id="vib1">—</div>
               <div class="time" id="vib1t">—</div>
             </div>
 
-            <div class="pill" style="margin-top: 12px;">
+            <div class="pill">
               <div class="name">Grav</div>
               <div class="val" id="grav">—</div>
               <div class="time" id="gravt">—</div>
@@ -472,26 +431,6 @@
               <div>BAT2 <span id="bat2" class="bat-on">—</span></div>
               <div>Render <span id="renderStatus">OFF</span></div>
               <div class="status">Socket: <span id="status">Conectando…</span></div>
-            </div>
-
-            <div class="log-panel">
-              <div class="hdr">
-                <div class="title">Data Table</div>
-                <button id="exportIncAzm">Export CSV</button>
-              </div>
-              <div class="log-table-wrap" id="incAzmWrap">
-                <table class="log">
-                  <thead>
-                    <tr>
-                      <th>Fecha</th>
-                      <th>Hora</th>
-                      <th>Nombre</th>
-                      <th>Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody id="incAzmBody"></tbody>
-                </table>
-              </div>
             </div>
           </div>
         </div>
@@ -638,10 +577,6 @@
       const centerLabelEl = document.getElementById('centerLabel');
       const centerValueEl = document.getElementById('centerValue');
       const centerCounterEl = document.getElementById('centerCounter');
-
-      const incAzmBodyEl = document.getElementById('incAzmBody');
-      const incAzmWrapEl = document.getElementById('incAzmWrap');
-      const exportIncAzmEl = document.getElementById('exportIncAzm');
 
       const canvas = document.getElementById('compass');
       const ctx = canvas.getContext('2d');
@@ -937,82 +872,15 @@
         statusEl.textContent = 'Desconectado';
       });
 
-      function fmtDateLocal(d) {
+      const openConfigParam = (new URLSearchParams(window.location.search || '')).get('open_config');
+      if (openConfigParam === '1' && openConfigEl) {
         try {
-          return d.toLocaleDateString('es-AR', { year: 'numeric', month: 'short', day: '2-digit' });
-        } catch (_) {
-          return d.toLocaleDateString();
-        }
-      }
-
-      function fmtTimeLocal(d) {
-        try {
-          return d.toLocaleTimeString('es-AR', { hour12: false });
-        } catch (_) {
-          return d.toLocaleTimeString();
-        }
-      }
-
-      function appendIncAzmRows(items) {
-        if (!Array.isArray(items)) return;
-        for (const it of items) {
-          if (!it) continue;
-          const ts = Number(it.ts);
-          const name = it.name !== undefined && it.name !== null ? String(it.name) : '';
-          const value = it.value;
-          if (!Number.isFinite(ts) || !name) continue;
-
-          const d = new Date(ts * 1000);
-          const tr = document.createElement('tr');
-          const tdDate = document.createElement('td');
-          const tdTime = document.createElement('td');
-          const tdName = document.createElement('td');
-          const tdVal = document.createElement('td');
-
-          tdDate.textContent = fmtDateLocal(d);
-          tdTime.textContent = fmtTimeLocal(d);
-          tdName.textContent = name;
-          tdVal.textContent = (value === null || value === undefined) ? '' : String(value);
-
-          tr.appendChild(tdDate);
-          tr.appendChild(tdTime);
-          tr.appendChild(tdName);
-          tr.appendChild(tdVal);
-          incAzmBodyEl.appendChild(tr);
-        }
-
-        try {
-          incAzmWrapEl.scrollTop = incAzmWrapEl.scrollHeight;
+          cfgOpen();
+          loadPorts();
+          loadSerialConfig();
         } catch (_) {
         }
       }
-
-      async function loadIncAzmLog() {
-        try {
-          const r = await fetch('/api/incazm/log?limit=20000');
-          if (!r || !r.ok) return;
-          const js = await r.json();
-          const items = (js && Array.isArray(js.items)) ? js.items : [];
-          incAzmBodyEl.innerHTML = '';
-          appendIncAzmRows(items);
-        } catch (_) {
-        }
-      }
-
-      exportIncAzmEl.addEventListener('click', () => {
-        try {
-          window.location.href = '/api/incazm/export.csv';
-        } catch (_) {
-        }
-      });
-
-      socket.on('incazm_log_append', (msg) => {
-        if (!msg) return;
-        const items = Array.isArray(msg.items) ? msg.items : [];
-        appendIncAzmRows(items);
-      });
-
-      loadIncAzmLog();
 
       socket.on('decoder_state', (s) => {
         if (!s) return;
