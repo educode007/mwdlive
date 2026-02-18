@@ -1207,13 +1207,16 @@
         try {
           if (!payload || typeof payload !== 'object') return;
 
+          let incomingSeq = null;
+          let incomingTs = null;
+
           if (payload.seq !== undefined && payload.seq !== null) {
             const s = Number(payload.seq);
-            if (Number.isFinite(s)) lastViewerSeq = s;
+            if (Number.isFinite(s)) incomingSeq = s;
           }
           if (payload.ts !== undefined && payload.ts !== null) {
             const t = Number(payload.ts);
-            if (Number.isFinite(t)) lastViewerTs = t;
+            if (Number.isFinite(t)) incomingTs = t;
           }
 
           if (payload.vsp !== undefined && payload.vsp !== null && Number.isFinite(Number(payload.vsp))) {
@@ -1241,6 +1244,9 @@
           renderPlots();
 
           viewerResizePlotsDeferred();
+
+          if (incomingSeq !== null) lastViewerSeq = incomingSeq;
+          if (incomingTs !== null) lastViewerTs = incomingTs;
         } catch (e) {
           setError(`viewer update error: ${String(e && e.message ? e.message : e)}`);
         }
@@ -1280,6 +1286,7 @@
       }
 
       function computeMinimumCurvature(surveys) {
+        if (!Array.isArray(surveys) || surveys.length === 0) return [];
         const out = [];
         let ns = 0;
         let ew = 0;
