@@ -109,12 +109,12 @@
         white-space: nowrap;
       }
 
-      body[data-viewer-mode] .viewer-right-panel {
+      body[data-viewer-mode='1'] .viewer-right-panel {
         display: flex;
         flex-direction: column;
       }
 
-      body[data-viewer-mode] .viewer-right-panel .view.active {
+      body[data-viewer-mode='1'] .viewer-right-panel .view.active {
         flex: 1;
         min-height: 0;
       }
@@ -245,25 +245,25 @@
         min-height: 0;
       }
 
-      body[data-viewer-mode] .plot {
+      body[data-viewer-mode='1'] .plot {
         min-height: 0;
       }
 
-      body[data-viewer-mode] #view-top,
-      body[data-viewer-mode] #view-vs {
+      body[data-viewer-mode='1'] #view-top,
+      body[data-viewer-mode='1'] #view-vs {
         display: block;
       }
 
-      body[data-viewer-mode] #view-top.hidden,
-      body[data-viewer-mode] #view-vs.hidden {
+      body[data-viewer-mode='1'] #view-top.hidden,
+      body[data-viewer-mode='1'] #view-vs.hidden {
         display: none;
       }
 
-      body[data-viewer-mode] .layout {
+      body[data-viewer-mode='1'] .layout {
         grid-template-columns: 1fr;
       }
 
-      body[data-viewer-mode] .controls {
+      body[data-viewer-mode='1'] .controls {
         display: none !important;
       }
 
@@ -349,6 +349,8 @@
         <span style="float: right; font-weight: 700;">
           <a href="/" style="margin-right: 10px;">Monitor</a>
           <a href="/plotter">Plot</a>
+          <a href="/anticollision" style="margin-left: 10px;">Anticollision</a>
+          <a href="/?open_config=1" style="margin-left: 10px;">Config</a>
         </span>
       </div>
 
@@ -459,6 +461,7 @@
               <div class="btnbar viewer-actions">
                 <button id="measureToggle">Medir</button>
                 <button id="clearMeasures">Borrar medidas</button>
+                <button id="dlAll">Descargar todo</button>
                 <button id="dlTop">Descargar Top (PDF)</button>
                 <button id="dlVS">Descargar VS (PDF)</button>
               </div>
@@ -478,6 +481,7 @@
             <div class="btnbar" style="margin-bottom: 6px;">
               <button id="measureToggle">Medir</button>
               <button id="clearMeasures">Borrar medidas</button>
+              <button id="dlAll">Descargar todo</button>
               <button id="dlTop">Descargar Top (PDF)</button>
               <button id="dlVS">Descargar VS (PDF)</button>
               <span id="measureHint" class="hint" style="margin-left: 6px;"></span>
@@ -545,6 +549,7 @@
       const controlsPanelEl = document.getElementById('controlsPanel');
       const dlTopBtn = document.getElementById('dlTop');
       const dlVSBtn = document.getElementById('dlVS');
+      const dlAllBtn = document.getElementById('dlAll');
 
       const measureToggleBtn = document.getElementById('measureToggle');
       const clearMeasuresBtn = document.getElementById('clearMeasures');
@@ -719,8 +724,109 @@
         }
       }
 
+      async function capturePlotImage(el) {
+        const w = Math.max(900, (el && el.clientWidth) ? el.clientWidth : 900);
+        const h = Math.max(650, (el && el.clientHeight) ? el.clientHeight : 650);
+        const dataUrl = await Plotly.toImage(el, { format: 'png', width: w, height: h, scale: 2 });
+        return { dataUrl, width: w, height: h };
+      }
+
+      async function downloadAllArtifacts() {
+        try {
+          const jsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : null;
+          if (!jsPDF) return;
+
+          const vspDeg = Number(vspEl.value);
+          const rows = real && real.length ? computeVS(real, vspDeg) : [];
+          const topImg = await capturePlotImage(plotTopEl);
+          const vsImg = await capturePlotImage(plotVSEl);
+
+          const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+          const pageW = doc.internal.pageSize.getWidth();
+          const pageH = doc.internal.pageSize.getHeight();
+          const margin = 28;
+
+          const tableHeader = 'No   MD     Inc    Azm    NS      EW      TVD     VS      DLS';
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(13);
+          doc.text('MWD Monitor - Curva Real + Top + VS', margin, margin + 6);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(10);
+          doc.text(`VSP: ${Number.isFinite(vspDeg) ? vspDeg.toFixed(2) : '0.00'} deg`, margin, margin + 24);
+          doc.text(`Fecha: ${new Date().toLocaleString()}`, margin, margin + 38);
+
+          let y = margin + 60;
+          doc.setFont('courier', 'bold');
+          doc.setFontSize(9);
+          doc.text('Curva Real (tabla):', margin, y);
+          y += 14;
+          doc.text(tableHeader, margin, y);
+          y += 12;
+
+          doc.setFont('courier', 'normal');
+          if (!rows.length) {
+            doc.text('Sin datos de Curva Real.', margin, y);
+          } else {
+            const maxRowsPerPage = 34;
+            for (let i = 0; i < rows.length; i++) {
+              if (i > 0 && i % maxRowsPerPage === 0) {
+                doc.addPage();
+                y = margin;
+                doc.setFont('courier', 'bold');
+                doc.text('Curva Real (continuacion):', margin, y);
+                y += 14;
+                doc.text(tableHeader, margin, y);
+                y += 12;
+                doc.setFont('courier', 'normal');
+              }
+              const r = rows[i];
+              const line = [
+                String(i).padStart(2, ' '),
+                r.md.toFixed(2).padStart(7, ' '),
+                r.inc.toFixed(2).padStart(6, ' '),
+                r.azm.toFixed(2).padStart(6, ' '),
+                r.ns.toFixed(2).padStart(7, ' '),
+                r.ew.toFixed(2).padStart(7, ' '),
+                r.tvd.toFixed(2).padStart(7, ' '),
+                r.vs.toFixed(2).padStart(7, ' '),
+                r.dls.toFixed(2).padStart(6, ' '),
+              ].join('  ');
+              doc.text(line, margin, y);
+              y += 11;
+            }
+          }
+
+          function addPlotPage(title, img) {
+            doc.addPage();
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(13);
+            doc.text(title, margin, margin + 6);
+            const maxW = pageW - margin * 2;
+            const maxH = pageH - (margin + 24) - margin;
+            const scale = Math.min(maxW / img.width, maxH / img.height);
+            const imgW = img.width * scale;
+            const imgH = img.height * scale;
+            const x = (pageW - imgW) / 2;
+            const yImg = margin + 24 + ((maxH - imgH) / 2);
+            doc.addImage(img.dataUrl, 'PNG', x, yImg, imgW, imgH);
+          }
+
+          addPlotPage('Plot Top', topImg);
+          addPlotPage('Plot VS', vsImg);
+
+          doc.save('mwd_plot_completo.pdf');
+        } catch (e) {
+          setError(`download-all error: ${String(e && e.message ? e.message : e)}`);
+        }
+      }
+
       dlTopBtn.addEventListener('click', () => downloadPlotPdf(plotTopEl, 'mwd_top'));
       dlVSBtn.addEventListener('click', () => downloadPlotPdf(plotVSEl, 'mwd_vs'));
+      if (dlAllBtn) {
+        dlAllBtn.addEventListener('click', () => {
+          downloadAllArtifacts();
+        });
+      }
 
       function saveState() {
         if (isViewer) return;
@@ -1136,6 +1242,48 @@
         renderTable();
         renderPlots();
         saveState();
+      }
+
+      function syncDatasetFromInput(kind) {
+        const inputEl = kind === 'real' ? realInputEl : proposalInputEl;
+        const text = (inputEl && inputEl.value) ? String(inputEl.value) : '';
+
+        if (!text.trim()) {
+          if (kind === 'real') {
+            real = null;
+            if (activeDataset === 'real') selectedIndex = null;
+          } else {
+            proposal = null;
+            if (activeDataset === 'proposal') selectedIndex = null;
+          }
+          renderTable();
+          renderPlots();
+          saveState();
+          return;
+        }
+
+        try {
+          const parsed = parsePasted(text);
+          const computed = computeMinimumCurvature(parsed);
+          if (kind === 'real') {
+            real = computed;
+            if (activeDataset === 'real' && selectedIndex !== null && selectedIndex >= computed.length) {
+              selectedIndex = null;
+            }
+          } else {
+            proposal = computed;
+            if (activeDataset === 'proposal' && selectedIndex !== null && selectedIndex >= computed.length) {
+              selectedIndex = null;
+            }
+          }
+          recomputeVSPIfAuto();
+          renderTable();
+          renderPlots();
+          saveState();
+        } catch (_) {
+          // Mientras se edita (texto parcial), no pisamos el dataset válido anterior.
+          scheduleSave();
+        }
       }
 
       function getDataset(which) {
@@ -1694,8 +1842,8 @@
         appendRealPoint(md, inc, azm);
       });
 
-      realInputEl.addEventListener('input', scheduleSave);
-      proposalInputEl.addEventListener('input', scheduleSave);
+      realInputEl.addEventListener('input', () => syncDatasetFromInput('real'));
+      proposalInputEl.addEventListener('input', () => syncDatasetFromInput('proposal'));
 
       measureToggleBtn.addEventListener('click', () => {
         measureEnabled = !measureEnabled;

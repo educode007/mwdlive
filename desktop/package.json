@@ -1,6 +1,6 @@
 {
   "name": "mwdmonitor-desktop",
-  "version": "0.1.16",
+  "version": "0.1.19",
   "private": true,
   "main": "main.js",
   "description": "MWD Monitor Desktop",
@@ -39,6 +39,7 @@
       }
     ],
     "win": {
+      "icon": "assets/directional-drilling.ico",
       "target": [
         "nsis"
       ]
@@ -46,7 +47,9 @@
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/directional-drilling.ico",
+      "uninstallerIcon": "assets/directional-drilling.ico"
     }
   },
   "devDependencies": {
