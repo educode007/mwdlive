@@ -74,6 +74,9 @@ decoder_state: dict[str, Any] = {
 ingest_lock = threading.Lock()
 last_ingest: dict[str, Any] | None = None
 
+plotter_lock = threading.Lock()
+last_plotter_snapshot: dict[str, Any] | None = None
+
 serial_lock = threading.Lock()
 serial_reader: SerialReader | None = None
 serial_config_snapshot: dict[str, Any] = {
@@ -345,11 +348,23 @@ def plotter_viewer():
     )
 
 
+@app.route("/anticollision")
+def anticollision():
+    return render_template("anticollision.html")
+
+
 @app.route("/api/plotter/publish", methods=["POST"])
 def api_plotter_publish():
+    global last_plotter_snapshot
+
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return ("Bad Request", 400)
+
+    plotter_payload = _extract_plotter_payload(data)
+    with plotter_lock:
+        last_plotter_snapshot = plotter_payload
+    _save_plotter_state(plotter_payload)
 
     url = _cfg_str("ingest_url", "").strip()
     key = _cfg_str("ingest_key", "").strip()
@@ -360,7 +375,7 @@ def api_plotter_publish():
     if not url.lower().endswith("/api/ingest"):
         url = url + "/api/ingest"
 
-    ok, err = _publish_to_render(url, key, data)
+    ok, err = _publish_to_render(url, key, plotter_payload)
     return jsonify({"ok": bool(ok), "error": err})
 
 
@@ -373,6 +388,10 @@ def _user_data_dir() -> str:
 
 def _serial_config_path() -> str:
     return os.path.join(_user_data_dir(), "serial_config.json")
+
+
+def _plotter_state_path() -> str:
+    return os.path.join(_user_data_dir(), "plotter_state.json")
 
 
 def _load_serial_config() -> None:
@@ -397,6 +416,94 @@ def _save_serial_config() -> None:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(serial_config_snapshot, f, ensure_ascii=False, indent=2)
+    except Exception:
+        return
+
+
+def _normalize_plotter_rows(rows: Any) -> list[dict[str, float]]:
+    if not isinstance(rows, list):
+        return []
+    out: list[dict[str, float]] = []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        try:
+            md = float(r.get("md"))
+            inc = float(r.get("inc"))
+            azm = float(r.get("azm"))
+        except Exception:
+            continue
+        if not (md == md and inc == inc and azm == azm):
+            continue
+        out.append({"md": md, "inc": inc, "azm": azm})
+    out.sort(key=lambda x: x["md"])
+    return out
+
+
+def _extract_plotter_payload(data: dict[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {
+        "well_id": str(data.get("well_id") or "default"),
+        "source": str(data.get("source") or "desktop_plotter"),
+        "ts": time.time(),
+        "surveys": {
+            "real": [],
+            "proposal": [],
+        },
+    }
+
+    try:
+        ts = float(data.get("ts"))
+        if ts == ts:
+            out["ts"] = ts
+    except Exception:
+        pass
+
+    try:
+        seq = int(data.get("seq"))
+        out["seq"] = seq
+    except Exception:
+        pass
+
+    try:
+        vsp = float(data.get("vsp"))
+        if vsp == vsp:
+            out["vsp"] = vsp
+    except Exception:
+        pass
+
+    surveys = data.get("surveys")
+    if isinstance(surveys, dict):
+        out["surveys"] = {
+            "real": _normalize_plotter_rows(surveys.get("real")),
+            "proposal": _normalize_plotter_rows(surveys.get("proposal")),
+        }
+    return out
+
+
+def _load_plotter_state() -> None:
+    global last_plotter_snapshot
+
+    path = _plotter_state_path()
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        if not isinstance(raw, dict):
+            return
+        payload = _extract_plotter_payload(raw)
+        with plotter_lock:
+            last_plotter_snapshot = payload
+    except FileNotFoundError:
+        return
+    except Exception:
+        return
+
+
+def _save_plotter_state(payload: dict[str, Any]) -> None:
+    path = _plotter_state_path()
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
     except Exception:
         return
 
@@ -521,9 +628,25 @@ def _build_publish_payload() -> dict[str, Any]:
         snap = dict(decoder_state)
     with latest_lock:
         wits = dict(latest_values)
+    with plotter_lock:
+        plotter = dict(last_plotter_snapshot) if isinstance(last_plotter_snapshot, dict) else None
 
     snap["ts"] = time.time()
     snap["wits"] = wits
+
+    if plotter:
+        if "well_id" in plotter:
+            snap["well_id"] = plotter.get("well_id")
+        if "source" in plotter:
+            snap["source"] = plotter.get("source")
+        if "seq" in plotter:
+            snap["seq"] = plotter.get("seq")
+        if "vsp" in plotter:
+            snap["vsp"] = plotter.get("vsp")
+        surveys = plotter.get("surveys")
+        if isinstance(surveys, dict):
+            snap["surveys"] = surveys
+
     return snap
 
 
@@ -1103,6 +1226,7 @@ def main() -> None:
     args = build_parser().parse_args()
 
     _load_serial_config()
+    _load_plotter_state()
 
     render_port = os.environ.get("PORT")
     if render_port:
