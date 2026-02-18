@@ -61,7 +61,7 @@
 
       .workspace-split {
         display: grid;
-        grid-template-columns: 420px 1fr;
+        grid-template-columns: 460px 1fr;
         gap: 10px;
         height: 100%;
         min-width: 0;
@@ -263,6 +263,27 @@
         grid-template-columns: 1fr;
       }
 
+      body[data-viewer-mode='1'] .workspace-split {
+        grid-template-columns: minmax(520px, 44%) 1fr;
+      }
+
+      body[data-viewer-mode='1'] .workspace-split > .panel:first-child {
+        display: flex;
+        flex-direction: column;
+      }
+
+      body[data-viewer-mode='1'] .workspace-split > .panel:first-child #view-surveys {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      body[data-viewer-mode='1'] .table-wrap.left {
+        height: auto;
+        flex: 1;
+        min-height: 0;
+      }
+
       body[data-viewer-mode='1'] .controls {
         display: none !important;
       }
@@ -461,7 +482,6 @@
               <div class="btnbar viewer-actions">
                 <button id="measureToggle">Medir</button>
                 <button id="clearMeasures">Borrar medidas</button>
-                <button id="viewerRefreshNow">Actualizar ahora</button>
                 <button id="dlAll">Descargar todo</button>
                 <button id="dlTop">Descargar Top (PDF)</button>
                 <button id="dlVS">Descargar VS (PDF)</button>
@@ -551,7 +571,6 @@
       const dlTopBtn = document.getElementById('dlTop');
       const dlVSBtn = document.getElementById('dlVS');
       const dlAllBtn = document.getElementById('dlAll');
-      const viewerRefreshNowBtn = document.getElementById('viewerRefreshNow');
       const openConfigLinkEl = document.getElementById('openConfigLink');
       const plotterLinkEl = document.getElementById('plotterLink');
 
@@ -1266,17 +1285,12 @@
         }
       }
 
-      async function viewerPollOnce(forceApply = false) {
+      async function viewerPollOnce() {
         try {
           const r = await fetch('/api/state', { cache: 'no-store' });
           if (!r || !r.ok) return false;
           const data = await r.json();
           if (!data || typeof data !== 'object') return false;
-
-          if (forceApply) {
-            applyIngestState(data);
-            return true;
-          }
 
           const nextSeq = (data.seq !== undefined && data.seq !== null) ? Number(data.seq) : null;
           const nextTs = (data.ts !== undefined && data.ts !== null) ? Number(data.ts) : null;
@@ -1292,28 +1306,6 @@
           return false;
         } catch (_) {
           return false;
-        }
-      }
-
-      async function viewerRefreshNow() {
-        if (!isViewer) return;
-        const prevText = viewerRefreshNowBtn ? viewerRefreshNowBtn.textContent : '';
-        if (viewerRefreshNowBtn) {
-          viewerRefreshNowBtn.disabled = true;
-          viewerRefreshNowBtn.textContent = 'Actualizando...';
-        }
-        try {
-          const ok = await viewerPollOnce(true);
-          if (!ok) {
-            setError('viewer: no se pudo actualizar ahora, reintentá.');
-          } else {
-            setError('');
-          }
-        } finally {
-          if (viewerRefreshNowBtn) {
-            viewerRefreshNowBtn.disabled = false;
-            viewerRefreshNowBtn.textContent = prevText || 'Actualizar ahora';
-          }
         }
       }
 
@@ -1933,11 +1925,6 @@
             const vsBtn = document.getElementById('viewerShowVS');
             if (topBtn) topBtn.addEventListener('click', () => setViewerPlot('top'));
             if (vsBtn) vsBtn.addEventListener('click', () => setViewerPlot('vs'));
-            if (viewerRefreshNowBtn) {
-              viewerRefreshNowBtn.addEventListener('click', () => {
-                viewerRefreshNow();
-              });
-            }
           } catch (_) {
           }
 
