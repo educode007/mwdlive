@@ -348,9 +348,9 @@
         <span>Plot <span id="buildInfo" style="font-weight: 700; color: #555;"></span></span>
         <span style="float: right; font-weight: 700;">
           <a href="/" style="margin-right: 10px;">Monitor</a>
-          <a href="/plotter">Plot</a>
+          <a href="{% if viewer_mode %}/plotter/viewer{% else %}/plotter{% endif %}" id="plotterLink">Plot</a>
           <a href="/anticollision" style="margin-left: 10px;">Anticollision</a>
-          <a href="/?open_config=1" style="margin-left: 10px;">Config</a>
+          {% if not viewer_mode %}<a href="/?open_config=1" id="openConfigLink" style="margin-left: 10px;">Config</a>{% endif %}
         </span>
       </div>
 
@@ -550,6 +550,8 @@
       const dlTopBtn = document.getElementById('dlTop');
       const dlVSBtn = document.getElementById('dlVS');
       const dlAllBtn = document.getElementById('dlAll');
+      const openConfigLinkEl = document.getElementById('openConfigLink');
+      const plotterLinkEl = document.getElementById('plotterLink');
 
       const measureToggleBtn = document.getElementById('measureToggle');
       const clearMeasuresBtn = document.getElementById('clearMeasures');
@@ -696,6 +698,33 @@
       const urlParams = new URLSearchParams(window.location.search || '');
       const isViewer = (urlParams.get('viewer') === '1') || ((document.body && document.body.dataset && document.body.dataset.viewerMode) ? String(document.body.dataset.viewerMode) === '1' : false);
 
+      function sleep(ms) {
+        return new Promise((resolve) => window.setTimeout(resolve, ms));
+      }
+
+      function isLocalHost() {
+        try {
+          const host = (window.location && window.location.hostname) ? String(window.location.hostname).toLowerCase() : '';
+          return host === '127.0.0.1' || host === 'localhost';
+        } catch (_) {
+          return false;
+        }
+      }
+
+      (function applyWebNavigationRules() {
+        const local = isLocalHost();
+        if (!local) {
+          if (openConfigLinkEl) openConfigLinkEl.style.display = 'none';
+          if (plotterLinkEl) plotterLinkEl.href = '/plotter/viewer';
+          try {
+            if (window.location && window.location.pathname === '/plotter') {
+              window.location.replace('/plotter/viewer');
+            }
+          } catch (_) {
+          }
+        }
+      })();
+
       async function downloadPlotPdf(el, filename) {
         try {
           const w = Math.max(900, (el && el.clientWidth) ? el.clientWidth : 900);
@@ -724,11 +753,61 @@
         }
       }
 
-      async function capturePlotImage(el) {
-        const w = Math.max(900, (el && el.clientWidth) ? el.clientWidth : 900);
-        const h = Math.max(650, (el && el.clientHeight) ? el.clientHeight : 650);
+      async function ensurePlotReady(el) {
+        try {
+          if (el) Plotly.Plots.resize(el);
+        } catch (_) {
+        }
+        await sleep(60);
+        try {
+          if (el) await Plotly.redraw(el);
+        } catch (_) {
+        }
+        await sleep(60);
+      }
+
+      async function capturePlotImage(el, whichViewerPlot) {
+        if (isViewer && whichViewerPlot) {
+          setViewerPlot(whichViewerPlot);
+          await sleep(90);
+        }
+        await ensurePlotReady(el);
+
+        const w = Math.max(1200, (el && el.clientWidth) ? el.clientWidth : 1200);
+        const h = Math.max(800, (el && el.clientHeight) ? el.clientHeight : 800);
         const dataUrl = await Plotly.toImage(el, { format: 'png', width: w, height: h, scale: 2 });
         return { dataUrl, width: w, height: h };
+      }
+
+      async function downloadPlotPdfFor(which, filename) {
+        const whichPlot = which === 'vs' ? 'vs' : 'top';
+        const el = whichPlot === 'vs' ? plotVSEl : plotTopEl;
+        const previous = viewerActivePlot;
+        try {
+          const img = await capturePlotImage(el, whichPlot);
+          const jsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : null;
+          if (!jsPDF) return;
+
+          const doc = new jsPDF({ orientation: img.width >= img.height ? 'l' : 'p', unit: 'pt', format: 'a4' });
+          const pageW = doc.internal.pageSize.getWidth();
+          const pageH = doc.internal.pageSize.getHeight();
+          const margin = 24;
+          const maxW = pageW - margin * 2;
+          const maxH = pageH - margin * 2;
+          const scale = Math.min(maxW / img.width, maxH / img.height);
+          const imgW = img.width * scale;
+          const imgH = img.height * scale;
+          const x = (pageW - imgW) / 2;
+          const y = (pageH - imgH) / 2;
+          doc.addImage(img.dataUrl, 'PNG', x, y, imgW, imgH);
+          doc.save(`${filename}.pdf`);
+        } catch (e) {
+          setError(`download error: ${String(e && e.message ? e.message : e)}`);
+        } finally {
+          if (isViewer) {
+            setViewerPlot(previous === 'vs' ? 'vs' : 'top');
+          }
+        }
       }
 
       async function downloadAllArtifacts() {
@@ -738,8 +817,10 @@
 
           const vspDeg = Number(vspEl.value);
           const rows = real && real.length ? computeVS(real, vspDeg) : [];
-          const topImg = await capturePlotImage(plotTopEl);
-          const vsImg = await capturePlotImage(plotVSEl);
+          const previous = viewerActivePlot;
+          const topImg = await capturePlotImage(plotTopEl, 'top');
+          const vsImg = await capturePlotImage(plotVSEl, 'vs');
+          if (isViewer) setViewerPlot(previous === 'vs' ? 'vs' : 'top');
 
           const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
           const pageW = doc.internal.pageSize.getWidth();
@@ -820,8 +901,8 @@
         }
       }
 
-      dlTopBtn.addEventListener('click', () => downloadPlotPdf(plotTopEl, 'mwd_top'));
-      dlVSBtn.addEventListener('click', () => downloadPlotPdf(plotVSEl, 'mwd_vs'));
+      dlTopBtn.addEventListener('click', () => downloadPlotPdfFor('top', 'mwd_top'));
+      dlVSBtn.addEventListener('click', () => downloadPlotPdfFor('vs', 'mwd_vs'));
       if (dlAllBtn) {
         dlAllBtn.addEventListener('click', () => {
           downloadAllArtifacts();
