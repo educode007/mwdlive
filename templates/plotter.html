@@ -574,6 +574,7 @@
       let lastViewerTs = null;
 
       let viewerActivePlot = 'top';
+      let viewerInitialAutoFitDone = false;
 
       function viewerResizePlotsDeferred() {
         if (!isViewer) return;
@@ -594,6 +595,23 @@
           });
         } catch (_) {
         }
+      }
+
+      function startViewerPolling() {
+        viewerPollOnce();
+
+        let fastTicks = 0;
+        const fastTimer = window.setInterval(() => {
+          fastTicks += 1;
+          viewerPollOnce();
+          if (lastViewerSeq !== null || fastTicks >= 20) {
+            window.clearInterval(fastTimer);
+          }
+        }, 500);
+
+        window.setInterval(() => {
+          viewerPollOnce();
+        }, 2500);
       }
 
       function setViewerPlot(which) {
@@ -1420,8 +1438,9 @@
         try {
         const vspDeg = Number(vspEl.value);
 
-        const topKeep = currentRanges(plotTopEl);
-        const vsKeep = currentRanges(plotVSEl);
+        const shouldKeepRanges = !isViewer || viewerInitialAutoFitDone;
+        const topKeep = shouldKeepRanges ? currentRanges(plotTopEl) : { x: null, y: null };
+        const vsKeep = shouldKeepRanges ? currentRanges(plotVSEl) : { x: null, y: null };
 
         const normalizeRange = (rng) => {
           if (!Array.isArray(rng) || rng.length !== 2) return null;
@@ -1664,6 +1683,10 @@
           }
         }
 
+        if (isViewer && !viewerInitialAutoFitDone && (tracesTop.length || tracesVS.length)) {
+          viewerInitialAutoFitDone = true;
+        }
+
         if (!plotVSEl.dataset.plotlyErrorBound) {
           if (plotVSEl && typeof plotVSEl.on === 'function') {
             plotVSEl.on('plotly_error', (ev) => {
@@ -1849,14 +1872,6 @@
           } catch (_) {
           }
 
-          fetch('/api/state')
-            .then((r) => (r && r.ok) ? r.json() : null)
-            .then((data) => {
-              if (data) applyIngestState(data);
-            })
-            .catch(() => {
-            });
-
           try {
             if (typeof io === 'function') {
               const socket = io();
@@ -1868,9 +1883,7 @@
           } catch (_) {
           }
 
-          window.setInterval(() => {
-            viewerPollOnce();
-          }, 2500);
+          startViewerPolling();
 
           window.addEventListener('resize', () => {
             viewerResizePlotsDeferred();
