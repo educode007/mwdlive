@@ -515,6 +515,90 @@ def _merge_plotter_fields(previous: dict[str, Any] | None, incoming: dict[str, A
     return merged
 
 
+def _auto_plotter_point_from_latest() -> dict[str, float] | None:
+    md = _latest_value("0108")
+    if md is None:
+        md = _latest_value("0110")
+    inc = _latest_value(_cfg_str("inc_code", "0713"))
+    azm = _latest_value(_cfg_str("azm_code", "0715"))
+
+    if md is None or inc is None or azm is None:
+        return None
+    try:
+        md_f = float(md)
+        inc_f = float(inc)
+        azm_f = float(azm)
+    except Exception:
+        return None
+    if not (md_f == md_f and inc_f == inc_f and azm_f == azm_f):
+        return None
+    return {
+        "md": md_f,
+        "inc": inc_f,
+        "azm": azm_f % 360.0,
+    }
+
+
+def _update_auto_plotter_snapshot() -> None:
+    global last_plotter_snapshot
+
+    point = _auto_plotter_point_from_latest()
+    if not point:
+        return
+
+    payload_to_save: dict[str, Any] | None = None
+    with plotter_lock:
+        previous = dict(last_plotter_snapshot) if isinstance(last_plotter_snapshot, dict) else {}
+        prev_surveys = previous.get("surveys") if isinstance(previous.get("surveys"), dict) else {}
+        real_rows = _normalize_plotter_rows(prev_surveys.get("real"))
+        proposal_rows = _normalize_plotter_rows(prev_surveys.get("proposal"))
+
+        changed = False
+        if real_rows:
+            last = real_rows[-1]
+            same_md = abs(float(last.get("md", -1.0)) - point["md"]) <= 0.01
+            if same_md:
+                if (
+                    abs(float(last.get("inc", 0.0)) - point["inc"]) > 1e-6
+                    or abs(float(last.get("azm", 0.0)) - point["azm"]) > 1e-6
+                ):
+                    real_rows[-1] = point
+                    changed = True
+            elif point["md"] > float(last.get("md", 0.0)):
+                real_rows.append(point)
+                changed = True
+        else:
+            real_rows = [point]
+            changed = True
+
+        if not changed:
+            return
+
+        seq_prev = previous.get("seq")
+        try:
+            next_seq = int(seq_prev) + 1
+        except Exception:
+            next_seq = 1
+
+        payload_to_save = {
+            "well_id": str(previous.get("well_id") or "default"),
+            "source": str(previous.get("source") or "desktop_auto"),
+            "ts": time.time(),
+            "seq": next_seq,
+            "surveys": {
+                "real": real_rows,
+                "proposal": proposal_rows,
+            },
+        }
+        if "vsp" in previous:
+            payload_to_save["vsp"] = previous.get("vsp")
+
+        last_plotter_snapshot = payload_to_save
+
+    if payload_to_save is not None:
+        _save_plotter_state(payload_to_save)
+
+
 def _load_plotter_state() -> None:
     global last_plotter_snapshot
 
@@ -1243,6 +1327,8 @@ def handle_line(line: str) -> None:
             }
         if not NO_WEB:
             socketio.emit("wits_values", payload)
+
+        _update_auto_plotter_snapshot()
 
         snapshot = _update_decoder_from_latest()
         if snapshot is not None and not NO_WEB:
