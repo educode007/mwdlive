@@ -480,6 +480,41 @@ def _extract_plotter_payload(data: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def _has_plotter_surveys(payload: dict[str, Any]) -> bool:
+    surveys = payload.get("surveys")
+    if not isinstance(surveys, dict):
+        return False
+    return ("real" in surveys) or ("proposal" in surveys)
+
+
+def _merge_plotter_fields(previous: dict[str, Any] | None, incoming: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(incoming, dict):
+        return incoming
+    if not isinstance(previous, dict):
+        return incoming
+
+    merged = dict(incoming)
+
+    # If decoder-only payload arrives (no surveys), keep last known plotter context.
+    if not _has_plotter_surveys(merged) and _has_plotter_surveys(previous):
+        prev_surveys = previous.get("surveys")
+        if isinstance(prev_surveys, dict):
+            merged["surveys"] = {
+                "real": _normalize_plotter_rows(prev_surveys.get("real")),
+                "proposal": _normalize_plotter_rows(prev_surveys.get("proposal")),
+            }
+        if "vsp" not in merged and ("vsp" in previous):
+            merged["vsp"] = previous.get("vsp")
+        if "well_id" not in merged and ("well_id" in previous):
+            merged["well_id"] = previous.get("well_id")
+        if "source" not in merged and ("source" in previous):
+            merged["source"] = previous.get("source")
+        if "seq" not in merged and ("seq" in previous):
+            merged["seq"] = previous.get("seq")
+
+    return merged
+
+
 def _load_plotter_state() -> None:
     global last_plotter_snapshot
 
@@ -1021,6 +1056,10 @@ def api_ingest():
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return ("Bad Request", 400)
+
+    with ingest_lock:
+        previous = dict(last_ingest) if isinstance(last_ingest, dict) else None
+    payload = _merge_plotter_fields(previous, payload)
 
     now = time.time()
     try:
