@@ -565,7 +565,7 @@
       </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
       const openConfigEl = document.getElementById('openConfig');
       const cfgOverlayEl = document.getElementById('cfgOverlay');
@@ -620,7 +620,9 @@
       let lastTfaTick = null;
       let lastResetSeq = null;
 
-      const socket = (typeof io === 'function') ? io() : null;
+      const socket = (typeof io === 'function')
+        ? io({ transports: ['polling', 'websocket'], reconnection: true, timeout: 10000 })
+        : null;
       if (!socket) {
         statusEl.textContent = 'Socket no disponible';
       }
@@ -913,6 +915,14 @@
 
       socketOn('disconnect', () => {
         statusEl.textContent = 'Desconectado';
+      });
+
+      socketOn('connect_error', () => {
+        statusEl.textContent = 'Error de conexión';
+      });
+
+      socketOn('reconnect_attempt', () => {
+        statusEl.textContent = 'Reconectando...';
       });
 
       const openConfigParam = (new URLSearchParams(window.location.search || '')).get('open_config');
