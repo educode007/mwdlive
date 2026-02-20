@@ -298,6 +298,141 @@
         color: #444;
       }
 
+      @media (max-width: 1080px) {
+        html, body {
+          height: auto;
+          min-height: 100%;
+        }
+
+        .frame {
+          height: auto;
+          min-height: 100vh;
+        }
+
+        .layout {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto auto auto;
+          gap: 10px;
+          padding: 10px;
+          height: auto;
+        }
+
+        .center {
+          order: 1;
+        }
+
+        .right {
+          order: 2;
+          padding-top: 0;
+        }
+
+        .left {
+          order: 3;
+        }
+
+        .left, .right {
+          justify-content: flex-start;
+          background: var(--panel);
+          border: 1px solid #d4d4d4;
+          border-radius: 12px;
+        }
+
+        .left > div {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(130px, 1fr));
+          gap: 8px;
+          width: 100%;
+        }
+
+        .left .stats {
+          grid-column: 1 / -1;
+          margin-bottom: 0;
+        }
+
+        .pill {
+          width: 100%;
+          min-width: 0;
+          max-width: none;
+        }
+
+        .top-right {
+          text-align: left;
+          width: 100%;
+          line-height: 1.45;
+        }
+
+        .center-box {
+          transform: translateY(-4px);
+        }
+
+        canvas {
+          width: min(560px, 86vw);
+          height: min(560px, 86vw);
+        }
+
+        .bottom {
+          grid-template-columns: 1fr 1fr;
+          padding: 0 4px 8px 4px;
+        }
+
+        .bottom > div:nth-child(2) {
+          display: none;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .titlebar {
+          padding: 8px;
+        }
+
+        #titleText {
+          width: 100%;
+        }
+
+        .topnav {
+          width: 100%;
+        }
+
+        .topnav .nav-link {
+          flex: 1 1 calc(50% - 8px);
+          min-height: 34px;
+        }
+
+        .layout {
+          padding: 8px;
+        }
+
+        .left > div {
+          grid-template-columns: 1fr;
+        }
+
+        .center-label {
+          font-size: 18px;
+        }
+
+        .center-value {
+          font-size: 32px;
+        }
+
+        .center-counter {
+          font-size: 13px;
+        }
+
+        .bigbox .label {
+          font-size: 17px;
+        }
+
+        .bigbox .bigval {
+          min-width: 108px;
+          font-size: 34px;
+          padding: 4px 10px;
+        }
+
+        .top-right {
+          font-size: 14px;
+        }
+      }
+
       .cfg-overlay {
         position: fixed;
         inset: 0;
