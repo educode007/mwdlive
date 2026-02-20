@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Anticollision</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --bg: #f3f4f6;
+        --panel: #ffffff;
+        --border: #dedede;
+        --text: #111827;
+        --muted: #6b7280;
+        --green: #c7f9cc;
+        --green-border: #80ed99;
+      }
+
+      html, body {
+        height: 100%;
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        color: var(--text);
+        background: var(--bg);
+      }
+
+      .frame {
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      .titlebar {
+        padding: 6px 10px;
+        font-size: 14px;
+        font-weight: 700;
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .topnav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .topnav .nav-link {
+        color: inherit;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 11px;
+        border-radius: 999px;
+        border: 1px solid #cfcfcf;
+        background: #f6f6f6;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      .topnav .nav-link.active {
+        background: var(--green);
+        border-color: var(--green-border);
+      }
+
+      .topnav .nav-link:hover {
+        background: #fff;
+      }
+
+      .layout {
+        padding: 10px;
+        display: grid;
+        grid-template-columns: 520px 1fr;
+        gap: 10px;
+        min-height: 0;
+      }
+
+      @media (max-width: 980px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px;
+      }
+
+      .btnbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      button {
+        border: 1px solid var(--border);
+        background: #fff;
+        padding: 7px 10px;
+        border-radius: 10px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      button.primary {
+        background: var(--green);
+        border-color: var(--green-border);
+      }
+
+      textarea {
+        width: 100%;
+        height: 120px;
+        resize: vertical;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+        box-sizing: border-box;
+      }
+
+      input[type="number"], input[type="text"] {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 6px 8px;
+        font-weight: 700;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #333;
+      }
+
+      .field span {
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .err {
+        color: #c01313;
+        font-weight: 800;
+        font-size: 12px;
+      }
+
+      .workspace {
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 10px;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .tab {
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-weight: 800;
+        background: #fff;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .tab.active {
+        background: var(--green);
+        border-color: var(--green-border);
+      }
+
+      .view {
+        display: none;
+        min-height: 0;
+      }
+
+      .view.active {
+        display: block;
+        min-height: 0;
+        height: 100%;
+      }
+
+      .plot {
+        width: 100%;
+        height: 100%;
+        min-height: 520px;
+      }
+
+      @media (max-width: 980px) {
+        .plot {
+          min-height: 440px;
+        }
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      @media (max-width: 980px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .dataset-label {
+        font-weight: 900;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #fafafa;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .badge.current { border-color: #2563eb; }
+      .badge.off1 { border-color: #b45309; }
+      .badge.off2 { border-color: #7c3aed; }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <div class="titlebar">
+        <span>Anticollision</span>
+        <nav class="topnav" aria-label="Navegación principal">
+          <a href="/" class="nav-link">Monitor</a>
+          <a href="/plotter" class="nav-link">Plot</a>
+          <a href="/anticollision" class="nav-link active">Anticollision</a>
+          <a href="/?open_config=1" class="nav-link">Config</a>
+        </nav>
+      </div>
+
+      <div class="layout">
+        <div class="panel" style="min-height: 0; overflow: auto;">
+          <div class="hint" style="margin-bottom: 8px;">
+            Pegá 3 columnas sin encabezado: <b>MD(m) INC(deg) AZM(deg)</b>. Acepta tab/espacios. Decimal con coma.
+          </div>
+          <div id="error" class="err" style="margin-bottom: 8px;"></div>
+
+          <div class="panel" style="margin-bottom: 10px;">
+            <div class="btnbar" style="justify-content: space-between;">
+              <div class="dataset-label"><span class="badge current">Current</span> Curva Real de Plot</div>
+              <div class="field" style="min-width: 140px;">
+                <span>VSP (deg)</span>
+                <input id="vsp" type="number" step="0.1" value="0" />
+              </div>
+            </div>
+            <div class="btnbar" style="margin-top: 8px; align-items: center;">
+              <button class="primary" id="loadCurrentFromPlot">Traer Current desde Plot/Real</button>
+              <div id="currentSourceHint" class="hint">Current toma los registros guardados en Plot (Curva Real).</div>
+            </div>
+            <div class="btnbar" style="margin-top: 8px; align-items: flex-end;">
+              <div class="field">
+                <span>MD</span>
+                <input id="curMD" type="number" step="0.01" placeholder="m" />
+              </div>
+              <div class="field">
+                <span>Inc</span>
+                <input id="curInc" type="number" step="0.01" placeholder="deg" />
+              </div>
+              <div class="field">
+                <span>Azm</span>
+                <input id="curAzm" type="number" step="0.01" placeholder="deg" />
+              </div>
+              <button id="addCurPoint">Agregar punto</button>
+              <button id="clearCurrent">Limpiar</button>
+            </div>
+            <div class="hint" style="margin-top: 6px;">Estos surveys no afectan Plot. Se guardan por separado en este módulo.</div>
+          </div>
+
+          <div class="row">
+            <div class="panel">
+              <div class="btnbar" style="justify-content: space-between;">
+                <div class="dataset-label"><span class="badge off1">Offset 1</span> Pozo previo</div>
+                <button id="clearOff1">Limpiar</button>
+              </div>
+              <textarea id="off1Input" placeholder="0,00\t0,00\t0,00\n380,37\t1,00\t280,70\n..."></textarea>
+              <div class="btnbar" style="margin-top: 8px;">
+                <button class="primary" id="loadOff1">Cargar Offset 1</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="btnbar" style="justify-content: space-between;">
+                <div class="dataset-label"><span class="badge off2">Offset 2</span> Pozo previo</div>
+                <button id="clearOff2">Limpiar</button>
+              </div>
+              <textarea id="off2Input" placeholder="0,00\t0,00\t0,00\n..."></textarea>
+              <div class="btnbar" style="margin-top: 8px;">
+                <button class="primary" id="loadOff2">Cargar Offset 2</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top: 10px;">
+            <div class="btnbar" style="justify-content: space-between;">
+              <div class="dataset-label">Curvas a graficar</div>
+              <div class="hint">(podés apagar/encender por curva)</div>
+            </div>
+            <div class="btnbar" style="margin-top: 8px;">
+              <label style="display:flex; gap:6px; align-items:center; font-weight:900;"><input id="showCurrent" type="checkbox" checked /> Current</label>
+              <label style="display:flex; gap:6px; align-items:center; font-weight:900;"><input id="showOff1" type="checkbox" checked /> Offset 1</label>
+              <label style="display:flex; gap:6px; align-items:center; font-weight:900;"><input id="showOff2" type="checkbox" checked /> Offset 2</label>
+            </div>
+            <div class="btnbar" style="margin-top: 10px;">
+              <button id="saveLocal">Guardar</button>
+              <button id="loadLocal">Cargar</button>
+              <button id="resetAll">Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="workspace">
+          <div class="panel">
+            <div class="tabs">
+              <div class="tab active" data-view="top">Top</div>
+              <div class="tab" data-view="vs">VS</div>
+              <div class="tab" data-view="d3">3D</div>
+            </div>
+            <div class="hint" style="margin-top: 8px;">TVD se grafica hacia abajo. En 3D, Z = -TVD.</div>
+          </div>
+
+          <div class="panel" style="padding: 0; overflow: hidden; min-height: 0;">
+            <div id="view-top" class="view active"><div id="plotTop" class="plot"></div></div>
+            <div id="view-vs" class="view"><div id="plotVS" class="plot"></div></div>
+            <div id="view-d3" class="view"><div id="plot3D" class="plot"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script>
+      const STORAGE_KEY = 'MWDMONITOR_ANTICOLLISION_V1';
+      const PLOTTER_STORAGE_KEY = 'mwd_plotter_state_v1';
+
+      const errorEl = document.getElementById('error');
+      const vspEl = document.getElementById('vsp');
+
+      const curMD = document.getElementById('curMD');
+      const curInc = document.getElementById('curInc');
+      const curAzm = document.getElementById('curAzm');
+      const addCurPointBtn = document.getElementById('addCurPoint');
+      const clearCurrentBtn = document.getElementById('clearCurrent');
+      const loadCurrentFromPlotBtn = document.getElementById('loadCurrentFromPlot');
+      const currentSourceHintEl = document.getElementById('currentSourceHint');
+
+      const off1InputEl = document.getElementById('off1Input');
+      const off2InputEl = document.getElementById('off2Input');
+      const loadOff1Btn = document.getElementById('loadOff1');
+      const loadOff2Btn = document.getElementById('loadOff2');
+      const clearOff1Btn = document.getElementById('clearOff1');
+      const clearOff2Btn = document.getElementById('clearOff2');
+
+      const showCurrentEl = document.getElementById('showCurrent');
+      const showOff1El = document.getElementById('showOff1');
+      const showOff2El = document.getElementById('showOff2');
+
+      const saveLocalBtn = document.getElementById('saveLocal');
+      const loadLocalBtn = document.getElementById('loadLocal');
+      const resetAllBtn = document.getElementById('resetAll');
+
+      const plotTopEl = document.getElementById('plotTop');
+      const plotVSEl = document.getElementById('plotVS');
+      const plot3DEl = document.getElementById('plot3D');
+
+      let current = [];
+      let off1 = [];
+      let off2 = [];
+      let rmbPanning = false;
+      let lastVSResetRanges = null;
+
+      function setError(msg) {
+        errorEl.textContent = msg || '';
+      }
+
+      function deg2rad(d) {
+        return (d * Math.PI) / 180;
+      }
+
+      function normalizeAzm(a) {
+        let v = a % 360;
+        if (v < 0) v += 360;
+        return v;
+      }
+
+      function parsePasted(text) {
+        const lines = (text || '').split(/\r?\n/);
+        const rows = [];
+        for (const raw of lines) {
+          const line = raw.trim();
+          if (!line) continue;
+          const parts = line.split(/\s+/);
+          if (parts.length < 3) throw new Error(`Línea inválida: "${raw}"`);
+          const md = Number(parts[0].replace(',', '.'));
+          const inc = Number(parts[1].replace(',', '.'));
+          const azm = Number(parts[2].replace(',', '.'));
+          if (!Number.isFinite(md) || !Number.isFinite(inc) || !Number.isFinite(azm)) {
+            throw new Error(`No numérico: "${raw}"`);
+          }
+          rows.push({ md, inc, azm: normalizeAzm(azm) });
+        }
+        if (rows.length < 2) throw new Error('Se requieren al menos 2 surveys.');
+        for (let i = 1; i < rows.length; i++) {
+          if (rows[i].md < rows[i - 1].md) throw new Error('MD debe ser creciente.');
+        }
+        return rows;
+      }
+
+      function normalizeSurveyArray(arr) {
+        if (!Array.isArray(arr)) return [];
+        const out = [];
+        for (const r of arr) {
+          if (!r) continue;
+          const md = Number(r.md);
+          const inc = Number(r.inc);
+          const azm = Number(r.azm);
+          if (!Number.isFinite(md) || !Number.isFinite(inc) || !Number.isFinite(azm)) continue;
+          out.push({ md, inc, azm: normalizeAzm(azm) });
+        }
+        out.sort((a, b) => a.md - b.md);
+        return out;
+      }
+
+      function computeMinimumCurvature(surveys) {
+        const out = [];
+        let ns = 0;
+        let ew = 0;
+        let tvd = 0;
+        out.push({ ...surveys[0], ns, ew, tvd, dls: 0 });
+
+        for (let i = 1; i < surveys.length; i++) {
+          const s1 = surveys[i - 1];
+          const s2 = surveys[i];
+
+          const md1 = s1.md;
+          const md2 = s2.md;
+          const dmd = md2 - md1;
+
+          const inc1 = deg2rad(s1.inc);
+          const inc2 = deg2rad(s2.inc);
+          const az1 = deg2rad(s1.azm);
+          const az2 = deg2rad(s2.azm);
+
+          const cosDL = (Math.cos(inc1) * Math.cos(inc2)) + (Math.sin(inc1) * Math.sin(inc2) * Math.cos(az2 - az1));
+          const dl = Math.acos(Math.max(-1, Math.min(1, cosDL)));
+          const rf = dl < 1e-12 ? 1 : (2 / dl) * Math.tan(dl / 2);
+
+          const dN = (dmd / 2) * (Math.sin(inc1) * Math.cos(az1) + Math.sin(inc2) * Math.cos(az2)) * rf;
+          const dE = (dmd / 2) * (Math.sin(inc1) * Math.sin(az1) + Math.sin(inc2) * Math.sin(az2)) * rf;
+          const dV = (dmd / 2) * (Math.cos(inc1) + Math.cos(inc2)) * rf;
+
+          ns += dN;
+          ew += dE;
+          tvd += dV;
+
+          const dls = dl < 1e-12 ? 0 : (dl * 180 / Math.PI) / dmd * 30;
+          out.push({ ...s2, ns, ew, tvd, dls });
+        }
+
+        return out;
+      }
+
+      function computeVS(rows, vspDeg) {
+        const a = deg2rad(vspDeg);
+        const ca = Math.cos(a);
+        const sa = Math.sin(a);
+        return rows.map((r) => ({ ...r, vs: (r.ns * ca) + (r.ew * sa) }));
+      }
+
+      function paddedRange(min, max, padFrac = 0.08) {
+        const a = Number(min);
+        const b = Number(max);
+        if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+        if (a === b) {
+          const d = Math.max(1, Math.abs(a) * 0.05);
+          return [a - d, b + d];
+        }
+        const span = Math.abs(b - a);
+        const pad = span * padFrac;
+        return [a - pad, b + pad];
+      }
+
+      function computeVSResetRanges(series) {
+        const xs = [];
+        const ys = [];
+        for (const s of (series || [])) {
+          if (!s || !Array.isArray(s.rows)) continue;
+          for (const r of s.rows) {
+            if (!r) continue;
+            if (Number.isFinite(r.vs)) xs.push(Number(r.vs));
+            if (Number.isFinite(r.tvd)) ys.push(Number(r.tvd));
+          }
+        }
+        if (!xs.length || !ys.length) return null;
+
+        const xMin = Math.min(...xs);
+        const xMax = Math.max(...xs);
+        const yMin = Math.min(...ys);
+        const yMax = Math.max(...ys);
+
+        const xPad = paddedRange(xMin, xMax, 0.08);
+        const yPad = paddedRange(yMin, yMax, 0.08);
+        if (!xPad || !yPad) return null;
+
+        return {
+          x: xPad,
+          y: [yPad[1], yPad[0]],
+        };
+      }
+
+      function resetVSView() {
+        if (!lastVSResetRanges) return;
+        const upd = {
+          'yaxis.autorange': false,
+          'yaxis.range': lastVSResetRanges.y.slice(),
+          'xaxis.autorange': false,
+          'xaxis.range': lastVSResetRanges.x.slice(),
+        };
+        try {
+          Plotly.relayout(plotVSEl, upd);
+        } catch (_) {
+        }
+      }
+
+      function loadCurrentFromPlotter(opts = {}) {
+        const silent = !!opts.silent;
+        try {
+          const raw = localStorage.getItem(PLOTTER_STORAGE_KEY);
+          if (!raw) {
+            if (!silent) setError('No hay estado local de Plot para Curva Real.');
+            return false;
+          }
+          const payload = JSON.parse(raw);
+          const txt = (payload && typeof payload === 'object' && payload.realText !== undefined)
+            ? String(payload.realText || '')
+            : '';
+          if (!txt.trim()) {
+            if (!silent) setError('Plot/Curva Real está vacío.');
+            return false;
+          }
+          const rows = parsePasted(txt);
+          current = computeMinimumCurvature(rows);
+          if (currentSourceHintEl) {
+            currentSourceHintEl.textContent = `Current sincronizado desde Plot/Real (${current.length} registros).`;
+          }
+          if (!silent) setError('');
+          return true;
+        } catch (e) {
+          if (!silent) setError(String(e && e.message ? e.message : e));
+          return false;
+        }
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            vsp: Number(vspEl.value),
+            current: current.map((r) => ({ md: r.md, inc: r.inc, azm: r.azm })),
+            off1Text: String(off1InputEl.value || ''),
+            off2Text: String(off2InputEl.value || ''),
+            show: {
+              current: !!showCurrentEl.checked,
+              off1: !!showOff1El.checked,
+              off2: !!showOff2El.checked,
+            },
+          }));
+        } catch (_) {
+        }
+      }
+
+      function restoreState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+          const payload = JSON.parse(raw);
+          if (payload && typeof payload === 'object') {
+            if (payload.vsp !== undefined && payload.vsp !== null && Number.isFinite(Number(payload.vsp))) {
+              vspEl.value = Number(payload.vsp).toFixed(2);
+            }
+            current = computeMinimumCurvature(normalizeSurveyArray(payload.current));
+            off1InputEl.value = payload.off1Text || '';
+            off2InputEl.value = payload.off2Text || '';
+            if (payload.show) {
+              if (payload.show.current !== undefined) showCurrentEl.checked = !!payload.show.current;
+              if (payload.show.off1 !== undefined) showOff1El.checked = !!payload.show.off1;
+              if (payload.show.off2 !== undefined) showOff2El.checked = !!payload.show.off2;
+            }
+          }
+        } catch (_) {
+        }
+      }
+
+      function getSeries() {
+        const vsp = Number(vspEl.value);
+
+        const series = [];
+        if (showCurrentEl.checked && current && current.length) {
+          series.push({
+            key: 'current',
+            name: 'Current',
+            color: '#2563eb',
+            rows: computeVS(current, vsp),
+          });
+        }
+
+        const off1Txt = off1InputEl.value || '';
+        const off2Txt = off2InputEl.value || '';
+
+        if (showOff1El.checked && off1 && off1.length) {
+          series.push({ key: 'off1', name: 'Offset 1', color: '#b45309', rows: computeVS(off1, vsp) });
+        } else if (showOff1El.checked && off1Txt.trim() && (!off1 || !off1.length)) {
+          // do nothing
+        }
+
+        if (showOff2El.checked && off2 && off2.length) {
+          series.push({ key: 'off2', name: 'Offset 2', color: '#7c3aed', rows: computeVS(off2, vsp) });
+        } else if (showOff2El.checked && off2Txt.trim() && (!off2 || !off2.length)) {
+          // do nothing
+        }
+
+        return series;
+      }
+
+      function renderPlots() {
+        try {
+          const series = getSeries();
+          lastVSResetRanges = computeVSResetRanges(series);
+
+          const topTraces = series.map((s) => ({
+            type: 'scatter',
+            mode: 'lines+markers',
+            name: s.name,
+            x: s.rows.map((r) => r.ew),
+            y: s.rows.map((r) => r.ns),
+            marker: { size: 6 },
+            line: { width: 3, color: s.color },
+            hovertemplate: 'EW=%{x:.2f} m<br>NS=%{y:.2f} m<extra>' + s.name + '</extra>',
+          }));
+
+          const vsTraces = series.map((s) => ({
+            type: 'scatter',
+            mode: 'lines+markers',
+            name: s.name,
+            x: s.rows.map((r) => r.vs),
+            y: s.rows.map((r) => r.tvd),
+            marker: { size: 6 },
+            line: { width: 3, color: s.color },
+            hovertemplate: 'VS=%{x:.2f} m<br>TVD=%{y:.2f} m<extra>' + s.name + '</extra>',
+          }));
+
+          const d3Traces = series.map((s) => ({
+            type: 'scatter3d',
+            mode: 'lines+markers',
+            name: s.name,
+            x: s.rows.map((r) => r.ew),
+            y: s.rows.map((r) => r.ns),
+            z: s.rows.map((r) => -r.tvd),
+            marker: { size: 3 },
+            line: { width: 4, color: s.color },
+            hovertemplate: 'EW=%{x:.2f}<br>NS=%{y:.2f}<br>Z=%{z:.2f}<extra>' + s.name + '</extra>',
+          }));
+
+          const topLayout = {
+            margin: { l: 40, r: 10, t: 30, b: 40 },
+            xaxis: { title: 'EW (m)', zeroline: false },
+            yaxis: { title: 'NS (m)', zeroline: false, scaleanchor: 'x', scaleratio: 1 },
+            legend: { orientation: 'h' },
+          };
+
+          const vsLayout = {
+            uirevision: 'anticollision-vs',
+            margin: { l: 50, r: 10, t: 30, b: 40 },
+            xaxis: { title: 'VS (m)', zeroline: false },
+            yaxis: { title: 'TVD (m)', autorange: 'reversed', zeroline: false },
+            legend: { orientation: 'h' },
+          };
+
+          if (lastVSResetRanges) {
+            vsLayout.xaxis.autorange = false;
+            vsLayout.xaxis.range = lastVSResetRanges.x.slice();
+            vsLayout.yaxis.autorange = false;
+            vsLayout.yaxis.range = lastVSResetRanges.y.slice();
+          }
+
+          const d3Layout = {
+            margin: { l: 0, r: 0, t: 30, b: 0 },
+            scene: {
+              xaxis: { title: 'EW (m)' },
+              yaxis: { title: 'NS (m)' },
+              zaxis: { title: 'Z=-TVD (m)' },
+              aspectmode: 'data',
+            },
+            legend: { orientation: 'h' },
+          };
+
+          Plotly.react(plotTopEl, topTraces, topLayout, { responsive: true, scrollZoom: true });
+          Plotly.react(plotVSEl, vsTraces, vsLayout, { responsive: true, scrollZoom: true, doubleClick: false });
+          Plotly.react(plot3DEl, d3Traces, d3Layout, { responsive: true });
+
+          bindRightMousePan(plotTopEl);
+          bindRightMousePan(plotVSEl);
+          bindVSDoubleClickResetOnce();
+
+          saveState();
+        } catch (e) {
+          setError(String(e && e.message ? e.message : e));
+        }
+      }
+
+      function bindVSDoubleClickResetOnce() {
+        if (!plotVSEl || plotVSEl.dataset.vsDoubleClickBound) return;
+        plotVSEl.addEventListener('dblclick', (ev) => {
+          ev.preventDefault();
+          if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+          if (ev.stopPropagation) ev.stopPropagation();
+          resetVSView();
+        }, true);
+        plotVSEl.dataset.vsDoubleClickBound = '1';
+      }
+
+      function bindRightMousePan(plotEl) {
+        if (!plotEl || plotEl.dataset.rmbBound) return;
+        const full = () => plotEl._fullLayout;
+        let start = null;
+
+        const resetPanState = () => {
+          rmbPanning = false;
+          start = null;
+        };
+
+        plotEl.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+        });
+
+        plotEl.addEventListener('mousedown', (e) => {
+          if (e.button !== 2) return;
+          const fl = full();
+          if (!fl || !fl.xaxis || !fl.yaxis) return;
+          e.preventDefault();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          if (e.stopPropagation) e.stopPropagation();
+
+          const xr = Array.isArray(fl.xaxis.range)
+            ? fl.xaxis.range
+            : (plotEl.layout && plotEl.layout.xaxis && Array.isArray(plotEl.layout.xaxis.range) ? plotEl.layout.xaxis.range : null);
+          const yr = Array.isArray(fl.yaxis.range)
+            ? fl.yaxis.range
+            : (plotEl.layout && plotEl.layout.yaxis && Array.isArray(plotEl.layout.yaxis.range) ? plotEl.layout.yaxis.range : null);
+          if (!xr || !yr) return;
+
+          rmbPanning = true;
+          start = {
+            x: e.clientX,
+            y: e.clientY,
+            xRange: xr.slice(),
+            yRange: yr.slice(),
+            xLen: fl.xaxis._length,
+            yLen: fl.yaxis._length,
+          };
+        }, true);
+
+        window.addEventListener('mousemove', (e) => {
+          if (!rmbPanning || !start) return;
+          if ((e.buttons & 2) === 0) {
+            resetPanState();
+            return;
+          }
+          e.preventDefault();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          if (e.stopPropagation) e.stopPropagation();
+          const fl = full();
+          if (!fl || !fl.xaxis || !fl.yaxis) return;
+
+          const dxPx = e.clientX - start.x;
+          const dyPx = e.clientY - start.y;
+
+          const xr0 = start.xRange[0];
+          const xr1 = start.xRange[1];
+          const yr0 = start.yRange[0];
+          const yr1 = start.yRange[1];
+
+          const xSpan = xr1 - xr0;
+          const ySpan = yr1 - yr0;
+
+          const dx = -dxPx * (xSpan / start.xLen);
+          const dy = dyPx * (ySpan / start.yLen);
+
+          Plotly.relayout(plotEl, {
+            'xaxis.range': [xr0 + dx, xr1 + dx],
+            'yaxis.range': [yr0 + dy, yr1 + dy],
+          });
+        }, true);
+
+        window.addEventListener('mouseup', (e) => {
+          if (!rmbPanning) return;
+          e.preventDefault();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          if (e.stopPropagation) e.stopPropagation();
+          resetPanState();
+        }, true);
+
+        window.addEventListener('blur', resetPanState);
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) resetPanState();
+        });
+        plotEl.addEventListener('mouseleave', resetPanState);
+
+        plotEl.dataset.rmbBound = '1';
+      }
+
+      function setActiveView(view) {
+        document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.view === view));
+        document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+        const el = document.getElementById(`view-${view}`);
+        if (el) el.classList.add('active');
+        try {
+          if (view === 'top') Plotly.Plots.resize(plotTopEl);
+          if (view === 'vs') Plotly.Plots.resize(plotVSEl);
+          if (view === 'd3') Plotly.Plots.resize(plot3DEl);
+        } catch (_) {
+        }
+      }
+
+      document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => setActiveView(t.dataset.view)));
+
+      function clearDataset(which) {
+        if (which === 'current') {
+          current = [];
+          curMD.value = '';
+          curInc.value = '';
+          curAzm.value = '';
+        }
+        if (which === 'off1') {
+          off1 = [];
+          off1InputEl.value = '';
+        }
+        if (which === 'off2') {
+          off2 = [];
+          off2InputEl.value = '';
+        }
+        setError('');
+        renderPlots();
+      }
+
+      addCurPointBtn.addEventListener('click', () => {
+        try {
+          const md = Number(curMD.value);
+          const inc = Number(curInc.value);
+          const azm = Number(curAzm.value);
+          if (!Number.isFinite(md) || !Number.isFinite(inc) || !Number.isFinite(azm)) {
+            throw new Error('MD/Inc/Azm inválidos');
+          }
+          const base = current && current.length ? current.map((r) => ({ md: r.md, inc: r.inc, azm: r.azm })) : [];
+          base.push({ md, inc, azm: normalizeAzm(azm) });
+          base.sort((a, b) => a.md - b.md);
+          if (base.length < 2) {
+            current = computeMinimumCurvature(base);
+          } else {
+            current = computeMinimumCurvature(base);
+          }
+          setError('');
+          renderPlots();
+        } catch (e) {
+          setError(String(e && e.message ? e.message : e));
+        }
+      });
+
+      clearCurrentBtn.addEventListener('click', () => clearDataset('current'));
+      clearOff1Btn.addEventListener('click', () => clearDataset('off1'));
+      clearOff2Btn.addEventListener('click', () => clearDataset('off2'));
+
+      if (loadCurrentFromPlotBtn) {
+        loadCurrentFromPlotBtn.addEventListener('click', () => {
+          if (loadCurrentFromPlotter()) {
+            renderPlots();
+          }
+        });
+      }
+
+      loadOff1Btn.addEventListener('click', () => {
+        try {
+          const rows = parsePasted(off1InputEl.value);
+          off1 = computeMinimumCurvature(rows);
+          setError('');
+          renderPlots();
+        } catch (e) {
+          setError(String(e && e.message ? e.message : e));
+        }
+      });
+
+      loadOff2Btn.addEventListener('click', () => {
+        try {
+          const rows = parsePasted(off2InputEl.value);
+          off2 = computeMinimumCurvature(rows);
+          setError('');
+          renderPlots();
+        } catch (e) {
+          setError(String(e && e.message ? e.message : e));
+        }
+      });
+
+      [showCurrentEl, showOff1El, showOff2El].forEach((el) => el.addEventListener('change', renderPlots));
+      vspEl.addEventListener('change', renderPlots);
+
+      saveLocalBtn.addEventListener('click', saveState);
+      loadLocalBtn.addEventListener('click', () => { restoreState(); renderPlots(); });
+      resetAllBtn.addEventListener('click', () => {
+        try { localStorage.removeItem(STORAGE_KEY); } catch (_) { }
+        current = [];
+        off1 = [];
+        off2 = [];
+        off1InputEl.value = '';
+        off2InputEl.value = '';
+        showCurrentEl.checked = true;
+        showOff1El.checked = true;
+        showOff2El.checked = true;
+        vspEl.value = '0';
+        setError('');
+        renderPlots();
+      });
+
+      // init
+      restoreState();
+      loadCurrentFromPlotter({ silent: true });
+      renderPlots();
+      window.addEventListener('storage', (ev) => {
+        if (ev && ev.key === PLOTTER_STORAGE_KEY) {
+          if (loadCurrentFromPlotter({ silent: true })) {
+            renderPlots();
+          }
+        }
+      });
+      window.addEventListener('resize', () => {
+        try { Plotly.Plots.resize(plotTopEl); } catch (_) { }
+        try { Plotly.Plots.resize(plotVSEl); } catch (_) { }
+        try { Plotly.Plots.resize(plot3DEl); } catch (_) { }
+      });
+    </script>
+  </body>
+</html>

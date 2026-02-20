@@ -35,9 +35,44 @@
         padding: 6px 10px;
         font-size: 14px;
         font-weight: 700;
-        text-align: center;
         background: #dcdcdc;
         border-bottom: 1px solid #c8c8c8;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .topnav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .topnav .nav-link {
+        color: inherit;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 11px;
+        border-radius: 999px;
+        border: 1px solid #bcbcbc;
+        background: #f6f6f6;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      .topnav .nav-link.active {
+        background: var(--green);
+        border-color: var(--green-border);
+      }
+
+      .topnav .nav-link:hover {
+        background: #fff;
       }
 
       .layout {
@@ -344,12 +379,12 @@
     <div class="frame">
       <div class="titlebar">
         <span id="titleText">Compass Rose - Live Mode</span>
-        <span style="float: right; font-weight: 700;">
-          <a href="/" style="color: inherit; text-decoration: underline; margin-right: 10px;">Monitor</a>
-          <a href="/plotter" id="plotterLink" style="color: inherit; text-decoration: underline;">Plot</a>
-          <a href="/anticollision" id="anticollisionLink" style="color: inherit; text-decoration: underline; margin-left: 10px;">Anticollision</a>
-          <a href="#" id="openConfig" style="color: inherit; text-decoration: underline; margin-left: 10px; display: none;">Config</a>
-        </span>
+        <nav class="topnav" aria-label="Navegación principal">
+          <a href="/" class="nav-link active">Monitor</a>
+          <a href="/plotter" id="plotterLink" class="nav-link">Plot</a>
+          <a href="/anticollision" id="anticollisionLink" class="nav-link">Anticollision</a>
+          <a href="#" id="openConfig" class="nav-link" style="display: none;">Config</a>
+        </nav>
       </div>
 
       <div class="layout">
