@@ -626,6 +626,7 @@
       if (!socket) {
         statusEl.textContent = 'Socket no disponible';
       }
+      let hasLiveState = false;
 
       function socketOn(eventName, handler) {
         if (!socket || typeof socket.on !== 'function') return;
@@ -925,18 +926,9 @@
         statusEl.textContent = 'Reconectando...';
       });
 
-      const openConfigParam = (new URLSearchParams(window.location.search || '')).get('open_config');
-      if (openConfigParam === '1' && openConfigEl) {
-        try {
-          cfgOpen();
-          loadPorts();
-          loadSerialConfig();
-        } catch (_) {
-        }
-      }
-
-      socketOn('decoder_state', (s) => {
+      function applyDecoderState(s) {
         if (!s) return;
+        hasLiveState = true;
 
         if (s.reset_seq !== undefined && s.reset_seq !== null) {
           const rs = Number(s.reset_seq);
@@ -1017,7 +1009,45 @@
         }
 
         drawCompass();
-      });
+      }
+
+      async function pollStateOnce() {
+        try {
+          const r = await fetch('/api/state', { cache: 'no-store' });
+          if (!r || !r.ok) return;
+          const js = await r.json();
+          if (!js || typeof js !== 'object') return;
+          applyDecoderState(js);
+          if (!socket || !socket.connected) {
+            statusEl.textContent = 'Polling activo';
+          }
+        } catch (_) {
+        }
+      }
+
+      window.setTimeout(() => {
+        if (!socket || !socket.connected) {
+          pollStateOnce();
+        }
+      }, 1200);
+
+      window.setInterval(() => {
+        if (!socket || !socket.connected || !hasLiveState) {
+          pollStateOnce();
+        }
+      }, 2500);
+
+      const openConfigParam = (new URLSearchParams(window.location.search || '')).get('open_config');
+      if (openConfigParam === '1' && openConfigEl) {
+        try {
+          cfgOpen();
+          loadPorts();
+          loadSerialConfig();
+        } catch (_) {
+        }
+      }
+
+      socketOn('decoder_state', applyDecoderState);
 
       // Initial draw
       drawCompass();
