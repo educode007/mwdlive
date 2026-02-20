@@ -565,7 +565,7 @@
       </div>
     </div>
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script>
       const openConfigEl = document.getElementById('openConfig');
       const cfgOverlayEl = document.getElementById('cfgOverlay');
@@ -620,7 +620,15 @@
       let lastTfaTick = null;
       let lastResetSeq = null;
 
-      const socket = io();
+      const socket = (typeof io === 'function') ? io() : null;
+      if (!socket) {
+        statusEl.textContent = 'Socket no disponible';
+      }
+
+      function socketOn(eventName, handler) {
+        if (!socket || typeof socket.on !== 'function') return;
+        socket.on(eventName, handler);
+      }
 
       try {
         const host = (window.location && window.location.hostname) ? String(window.location.hostname).toLowerCase() : '';
@@ -899,11 +907,11 @@
         return obj && Object.prototype.hasOwnProperty.call(obj, key);
       }
 
-      socket.on('connect', () => {
+      socketOn('connect', () => {
         statusEl.textContent = 'Conectado';
       });
 
-      socket.on('disconnect', () => {
+      socketOn('disconnect', () => {
         statusEl.textContent = 'Desconectado';
       });
 
@@ -917,7 +925,7 @@
         }
       }
 
-      socket.on('decoder_state', (s) => {
+      socketOn('decoder_state', (s) => {
         if (!s) return;
 
         if (s.reset_seq !== undefined && s.reset_seq !== null) {
