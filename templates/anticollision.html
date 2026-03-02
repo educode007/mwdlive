@@ -256,58 +256,68 @@
       <div class="layout">
         <div class="panel" style="min-height: 0; overflow: auto;">
           <div class="hint" style="margin-bottom: 8px;">
-            Pegá 3 columnas sin encabezado: <b>MD(m) INC(deg) AZM(deg)</b>. Acepta tab/espacios. Decimal con coma.
+            Offset wells: pegá 3 columnas sin encabezado: <b>MD(m) INC(deg) AZM(deg)</b>. Acepta tab/espacios. Decimal con coma o punto.
           </div>
           <div id="error" class="err" style="margin-bottom: 8px;"></div>
 
           <div class="panel" style="margin-bottom: 10px;">
-            <div class="btnbar" style="justify-content: space-between;">
+            <div class="btnbar" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
               <div class="dataset-label"><span class="badge current">Current</span> Curva Real de Plot</div>
               <div class="field" style="min-width: 140px;">
                 <span>VSP (deg)</span>
                 <input id="vsp" type="number" step="0.1" value="0" />
               </div>
             </div>
-            <div class="btnbar" style="margin-top: 8px; align-items: center;">
-              <button class="primary" id="loadCurrentFromPlot">Traer Current desde Plot/Real</button>
-              <div id="currentSourceHint" class="hint">Current toma los registros guardados en Plot (Curva Real).</div>
+            <div class="btnbar" style="margin-top: 8px; align-items: flex-end; flex-wrap: wrap;">
+              <div class="field">
+                <span>UTM Northing (m)</span>
+                <input id="curN" type="number" step="0.01" placeholder="ej. 6850000" style="width:140px;" />
+              </div>
+              <div class="field">
+                <span>UTM Easting (m)</span>
+                <input id="curE" type="number" step="0.01" placeholder="ej. 450000" style="width:140px;" />
+              </div>
             </div>
-            <div class="btnbar" style="margin-top: 8px; align-items: flex-end;">
-              <div class="field">
-                <span>MD</span>
-                <input id="curMD" type="number" step="0.01" placeholder="m" />
-              </div>
-              <div class="field">
-                <span>Inc</span>
-                <input id="curInc" type="number" step="0.01" placeholder="deg" />
-              </div>
-              <div class="field">
-                <span>Azm</span>
-                <input id="curAzm" type="number" step="0.01" placeholder="deg" />
-              </div>
-              <button id="addCurPoint">Agregar punto</button>
-              <button id="clearCurrent">Limpiar</button>
-            </div>
-            <div class="hint" style="margin-top: 6px;">Estos surveys no afectan Plot. Se guardan por separado en este módulo.</div>
+            <div class="hint" style="margin-top: 6px;" id="currentSourceHint">Current se carga automáticamente desde Plot / Curva Real. UTM es la referencia para los offsets.</div>
           </div>
 
           <div class="row">
             <div class="panel">
               <div class="btnbar" style="justify-content: space-between;">
-                <div class="dataset-label"><span class="badge off1">Offset 1</span> Pozo previo</div>
+                <div class="dataset-label"><span class="badge off1">Offset 1</span></div>
                 <button id="clearOff1">Limpiar</button>
               </div>
-              <textarea id="off1Input" placeholder="0,00\t0,00\t0,00\n380,37\t1,00\t280,70\n..."></textarea>
+              <div class="btnbar" style="margin-top: 8px; align-items: flex-end; flex-wrap: wrap;">
+                <div class="field">
+                  <span>UTM Northing (m)</span>
+                  <input id="off1N" type="number" step="0.01" placeholder="ej. 6850000" style="width:130px;" />
+                </div>
+                <div class="field">
+                  <span>UTM Easting (m)</span>
+                  <input id="off1E" type="number" step="0.01" placeholder="ej. 450000" style="width:130px;" />
+                </div>
+              </div>
+              <textarea id="off1Input" placeholder="0,00&#9;0,00&#9;0,00&#10;380,37&#9;1,00&#9;280,70&#10;..." style="margin-top:8px;"></textarea>
               <div class="btnbar" style="margin-top: 8px;">
                 <button class="primary" id="loadOff1">Cargar Offset 1</button>
               </div>
             </div>
             <div class="panel">
               <div class="btnbar" style="justify-content: space-between;">
-                <div class="dataset-label"><span class="badge off2">Offset 2</span> Pozo previo</div>
+                <div class="dataset-label"><span class="badge off2">Offset 2</span></div>
                 <button id="clearOff2">Limpiar</button>
               </div>
-              <textarea id="off2Input" placeholder="0,00\t0,00\t0,00\n..."></textarea>
+              <div class="btnbar" style="margin-top: 8px; align-items: flex-end; flex-wrap: wrap;">
+                <div class="field">
+                  <span>UTM Northing (m)</span>
+                  <input id="off2N" type="number" step="0.01" placeholder="ej. 6850000" style="width:130px;" />
+                </div>
+                <div class="field">
+                  <span>UTM Easting (m)</span>
+                  <input id="off2E" type="number" step="0.01" placeholder="ej. 450000" style="width:130px;" />
+                </div>
+              </div>
+              <textarea id="off2Input" placeholder="0,00&#9;0,00&#9;0,00&#10;..." style="margin-top:8px;"></textarea>
               <div class="btnbar" style="margin-top: 8px;">
                 <button class="primary" id="loadOff2">Cargar Offset 2</button>
               </div>
@@ -359,16 +369,16 @@
       const errorEl = document.getElementById('error');
       const vspEl = document.getElementById('vsp');
 
-      const curMD = document.getElementById('curMD');
-      const curInc = document.getElementById('curInc');
-      const curAzm = document.getElementById('curAzm');
-      const addCurPointBtn = document.getElementById('addCurPoint');
-      const clearCurrentBtn = document.getElementById('clearCurrent');
-      const loadCurrentFromPlotBtn = document.getElementById('loadCurrentFromPlot');
+      const curNEl = document.getElementById('curN');
+      const curEEl = document.getElementById('curE');
       const currentSourceHintEl = document.getElementById('currentSourceHint');
 
       const off1InputEl = document.getElementById('off1Input');
+      const off1NEl = document.getElementById('off1N');
+      const off1EEl = document.getElementById('off1E');
       const off2InputEl = document.getElementById('off2Input');
+      const off2NEl = document.getElementById('off2N');
+      const off2EEl = document.getElementById('off2E');
       const loadOff1Btn = document.getElementById('loadOff1');
       const loadOff2Btn = document.getElementById('loadOff2');
       const clearOff1Btn = document.getElementById('clearOff1');
@@ -578,9 +588,14 @@
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify({
             vsp: Number(vspEl.value),
-            current: current.map((r) => ({ md: r.md, inc: r.inc, azm: r.azm })),
+            curN: Number(curNEl.value) || 0,
+            curE: Number(curEEl.value) || 0,
             off1Text: String(off1InputEl.value || ''),
+            off1N: Number(off1NEl.value) || 0,
+            off1E: Number(off1EEl.value) || 0,
             off2Text: String(off2InputEl.value || ''),
+            off2N: Number(off2NEl.value) || 0,
+            off2E: Number(off2EEl.value) || 0,
             show: {
               current: !!showCurrentEl.checked,
               off1: !!showOff1El.checked,
@@ -600,9 +615,14 @@
             if (payload.vsp !== undefined && payload.vsp !== null && Number.isFinite(Number(payload.vsp))) {
               vspEl.value = Number(payload.vsp).toFixed(2);
             }
-            current = computeMinimumCurvature(normalizeSurveyArray(payload.current));
+            if (Number.isFinite(Number(payload.curN))) curNEl.value = Number(payload.curN);
+            if (Number.isFinite(Number(payload.curE))) curEEl.value = Number(payload.curE);
             off1InputEl.value = payload.off1Text || '';
+            if (Number.isFinite(Number(payload.off1N))) off1NEl.value = Number(payload.off1N);
+            if (Number.isFinite(Number(payload.off1E))) off1EEl.value = Number(payload.off1E);
             off2InputEl.value = payload.off2Text || '';
+            if (Number.isFinite(Number(payload.off2N))) off2NEl.value = Number(payload.off2N);
+            if (Number.isFinite(Number(payload.off2E))) off2EEl.value = Number(payload.off2E);
             if (payload.show) {
               if (payload.show.current !== undefined) showCurrentEl.checked = !!payload.show.current;
               if (payload.show.off1 !== undefined) showOff1El.checked = !!payload.show.off1;
@@ -613,8 +633,17 @@
         }
       }
 
+      function shiftRows(rows, dN, dE) {
+        if (dN === 0 && dE === 0) return rows;
+        return rows.map((r) => ({ ...r, ns: r.ns + dN, ew: r.ew + dE }));
+      }
+
       function getSeries() {
         const vsp = Number(vspEl.value);
+
+        const curUtmN = Number(curNEl.value);
+        const curUtmE = Number(curEEl.value);
+        const hasCurUtm = Number.isFinite(curUtmN) && Number.isFinite(curUtmE) && (curUtmN !== 0 || curUtmE !== 0);
 
         const series = [];
         if (showCurrentEl.checked && current && current.length) {
@@ -626,19 +655,24 @@
           });
         }
 
-        const off1Txt = off1InputEl.value || '';
-        const off2Txt = off2InputEl.value || '';
-
         if (showOff1El.checked && off1 && off1.length) {
-          series.push({ key: 'off1', name: 'Offset 1', color: '#b45309', rows: computeVS(off1, vsp) });
-        } else if (showOff1El.checked && off1Txt.trim() && (!off1 || !off1.length)) {
-          // do nothing
+          let rows = off1;
+          const o1N = Number(off1NEl.value);
+          const o1E = Number(off1EEl.value);
+          if (hasCurUtm && Number.isFinite(o1N) && Number.isFinite(o1E) && (o1N !== 0 || o1E !== 0)) {
+            rows = shiftRows(off1, o1N - curUtmN, o1E - curUtmE);
+          }
+          series.push({ key: 'off1', name: 'Offset 1', color: '#b45309', rows: computeVS(rows, vsp) });
         }
 
         if (showOff2El.checked && off2 && off2.length) {
-          series.push({ key: 'off2', name: 'Offset 2', color: '#7c3aed', rows: computeVS(off2, vsp) });
-        } else if (showOff2El.checked && off2Txt.trim() && (!off2 || !off2.length)) {
-          // do nothing
+          let rows = off2;
+          const o2N = Number(off2NEl.value);
+          const o2E = Number(off2EEl.value);
+          if (hasCurUtm && Number.isFinite(o2N) && Number.isFinite(o2E) && (o2N !== 0 || o2E !== 0)) {
+            rows = shiftRows(off2, o2N - curUtmN, o2E - curUtmE);
+          }
+          series.push({ key: 'off2', name: 'Offset 2', color: '#7c3aed', rows: computeVS(rows, vsp) });
         }
 
         return series;
@@ -847,12 +881,6 @@
       document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => setActiveView(t.dataset.view)));
 
       function clearDataset(which) {
-        if (which === 'current') {
-          current = [];
-          curMD.value = '';
-          curInc.value = '';
-          curAzm.value = '';
-        }
         if (which === 'off1') {
           off1 = [];
           off1InputEl.value = '';
@@ -865,40 +893,8 @@
         renderPlots();
       }
 
-      addCurPointBtn.addEventListener('click', () => {
-        try {
-          const md = Number(curMD.value);
-          const inc = Number(curInc.value);
-          const azm = Number(curAzm.value);
-          if (!Number.isFinite(md) || !Number.isFinite(inc) || !Number.isFinite(azm)) {
-            throw new Error('MD/Inc/Azm inválidos');
-          }
-          const base = current && current.length ? current.map((r) => ({ md: r.md, inc: r.inc, azm: r.azm })) : [];
-          base.push({ md, inc, azm: normalizeAzm(azm) });
-          base.sort((a, b) => a.md - b.md);
-          if (base.length < 2) {
-            current = computeMinimumCurvature(base);
-          } else {
-            current = computeMinimumCurvature(base);
-          }
-          setError('');
-          renderPlots();
-        } catch (e) {
-          setError(String(e && e.message ? e.message : e));
-        }
-      });
-
-      clearCurrentBtn.addEventListener('click', () => clearDataset('current'));
       clearOff1Btn.addEventListener('click', () => clearDataset('off1'));
       clearOff2Btn.addEventListener('click', () => clearDataset('off2'));
-
-      if (loadCurrentFromPlotBtn) {
-        loadCurrentFromPlotBtn.addEventListener('click', () => {
-          if (loadCurrentFromPlotter()) {
-            renderPlots();
-          }
-        });
-      }
 
       loadOff1Btn.addEventListener('click', () => {
         try {
@@ -924,6 +920,9 @@
 
       [showCurrentEl, showOff1El, showOff2El].forEach((el) => el.addEventListener('change', renderPlots));
       vspEl.addEventListener('change', renderPlots);
+      [curNEl, curEEl, off1NEl, off1EEl, off2NEl, off2EEl].forEach((el) => {
+        el.addEventListener('change', () => { saveState(); renderPlots(); });
+      });
 
       saveLocalBtn.addEventListener('click', saveState);
       loadLocalBtn.addEventListener('click', () => { restoreState(); renderPlots(); });
@@ -934,6 +933,12 @@
         off2 = [];
         off1InputEl.value = '';
         off2InputEl.value = '';
+        curNEl.value = '';
+        curEEl.value = '';
+        off1NEl.value = '';
+        off1EEl.value = '';
+        off2NEl.value = '';
+        off2EEl.value = '';
         showCurrentEl.checked = true;
         showOff1El.checked = true;
         showOff2El.checked = true;
