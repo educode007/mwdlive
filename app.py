@@ -76,9 +76,11 @@ last_ingest: dict[str, Any] | None = None
 
 plotter_lock = threading.Lock()
 last_plotter_snapshot: dict[str, Any] | None = None
+_labels_seq_counter = 0
 
 serial_lock = threading.Lock()
 serial_reader: SerialReader | None = None
+edr_serial_reader: SerialReader | None = None
 serial_config_snapshot: dict[str, Any] = {
     "serial_port": None,
     "baudrate": 9600,
@@ -98,6 +100,9 @@ serial_config_snapshot: dict[str, Any] = {
     "shk1_code": "0736",
     "vib1_code": "0737",
     "bat2_code": "0735",
+    "edr_depth_port": None,
+    "edr_depth_baudrate": 9600,
+    "edr_depth_code": "0110",
     "pump_on_threshold": 300.0,
     "ingest_url": "",
     "ingest_key": "",
@@ -355,7 +360,7 @@ def anticollision():
 
 @app.route("/api/plotter/publish", methods=["POST"])
 def api_plotter_publish():
-    global last_plotter_snapshot
+    global last_plotter_snapshot, last_ingest
 
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
@@ -366,17 +371,53 @@ def api_plotter_publish():
         last_plotter_snapshot = plotter_payload
     _save_plotter_state(plotter_payload)
 
+    global _labels_seq_counter
+    with ingest_lock:
+        previous_ingest = dict(last_ingest) if isinstance(last_ingest, dict) else None
+        merged_local = _merge_plotter_fields(previous_ingest, plotter_payload)
+        # Ensure seq always advances beyond whatever WAPP already saw (WITS seq can be higher)
+        prev_seq = None
+        if isinstance(previous_ingest, dict):
+            try:
+                prev_seq = int(previous_ingest.get("seq"))
+            except Exception:
+                prev_seq = None
+        incoming_seq = None
+        try:
+            incoming_seq = int(merged_local.get("seq"))
+        except Exception:
+            incoming_seq = None
+        if prev_seq is not None and (incoming_seq is None or incoming_seq <= prev_seq):
+            merged_local = dict(merged_local)
+            merged_local["seq"] = prev_seq + 1
+        # Compute labels_seq: only increments when depth_labels content actually changes
+        new_labels = _normalize_depth_labels(merged_local.get("depth_labels") or [])
+        new_sig = _labels_signature(new_labels)
+        prev_labels_sig = ''
+        if isinstance(previous_ingest, dict):
+            prev_labels_sig = _labels_signature(
+                _normalize_depth_labels(previous_ingest.get("depth_labels") or [])
+            )
+        if new_sig != prev_labels_sig:
+            _labels_seq_counter += 1
+        merged_local = dict(merged_local)
+        merged_local["labels_seq"] = _labels_seq_counter
+        last_ingest = merged_local
+
+    socketio.emit("state_update", merged_local)
+    socketio.emit("decoder_state", merged_local)
+
     url = _cfg_str("ingest_url", "").strip()
     key = _cfg_str("ingest_key", "").strip()
     if not url or not key:
-        return jsonify({"ok": False, "error": "ingest_url/ingest_key no configurados"}), 400
+        return jsonify({"ok": True, "remote_ok": False, "error": "ingest_url/ingest_key no configurados"})
 
     url = url.rstrip("/")
     if not url.lower().endswith("/api/ingest"):
         url = url + "/api/ingest"
 
-    ok, err = _publish_to_render(url, key, plotter_payload)
-    return jsonify({"ok": bool(ok), "error": err})
+    ok, err = _publish_to_render(url, key, merged_local)
+    return jsonify({"ok": True, "remote_ok": bool(ok), "error": err})
 
 
 def _user_data_dir() -> str:
@@ -440,6 +481,42 @@ def _normalize_plotter_rows(rows: Any) -> list[dict[str, float]]:
     return out
 
 
+def _normalize_depth_labels(items: Any) -> list[dict[str, Any]]:
+    if not isinstance(items, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        try:
+            md = float(item.get("md"))
+        except Exception:
+            continue
+        if not name or not (md == md):
+            continue
+        target_raw = str(item.get("target") or "real").strip().lower()
+        target = target_raw if target_raw in ("real", "proposal", "both") else "real"
+        color = str(item.get("color") or "#f59e0b").strip() or "#f59e0b"
+        out.append({
+            "name": name,
+            "md": md,
+            "target": target,
+            "color": color,
+        })
+    return out
+
+
+def _labels_signature(labels: list[dict[str, Any]]) -> str:
+    """Stable string signature for a list of depth labels."""
+    if not labels:
+        return ''
+    parts = []
+    for lb in sorted(labels, key=lambda x: (x.get('md', 0), x.get('name', ''))):
+        parts.append(f"{lb.get('name','')}|{lb.get('md','')}|{lb.get('target','')}|{lb.get('color','')}")
+    return '||'.join(parts)
+
+
 def _extract_plotter_payload(data: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {
         "well_id": str(data.get("well_id") or "default"),
@@ -477,6 +554,14 @@ def _extract_plotter_payload(data: dict[str, Any]) -> dict[str, Any]:
             "real": _normalize_plotter_rows(surveys.get("real")),
             "proposal": _normalize_plotter_rows(surveys.get("proposal")),
         }
+
+    has_depth_labels = ("depth_labels" in data) or ("depthLabels" in data)
+    depth_labels = data.get("depth_labels")
+    if depth_labels is None:
+        depth_labels = data.get("depthLabels")
+    norm_labels = _normalize_depth_labels(depth_labels)
+    if has_depth_labels:
+        out["depth_labels"] = norm_labels
     return out
 
 
@@ -512,11 +597,18 @@ def _merge_plotter_fields(previous: dict[str, Any] | None, incoming: dict[str, A
         if "seq" not in merged and ("seq" in previous):
             merged["seq"] = previous.get("seq")
 
+    if "depth_labels" not in merged and "depthLabels" not in merged and ("depth_labels" in previous):
+        prev_labels = _normalize_depth_labels(previous.get("depth_labels"))
+        if prev_labels:
+            merged["depth_labels"] = prev_labels
+
     return merged
 
 
 def _auto_plotter_point_from_latest() -> dict[str, float] | None:
     md = _latest_value("0108")
+    if md is None:
+        md = _latest_value(_cfg_str("edr_depth_code", "0110"))
     if md is None:
         md = _latest_value("0110")
     inc = _latest_value(_cfg_str("inc_code", "0713"))
@@ -592,6 +684,9 @@ def _update_auto_plotter_snapshot() -> None:
         }
         if "vsp" in previous:
             payload_to_save["vsp"] = previous.get("vsp")
+        prev_labels = _normalize_depth_labels(previous.get("depth_labels"))
+        if prev_labels:
+            payload_to_save["depth_labels"] = prev_labels
 
         last_plotter_snapshot = payload_to_save
 
@@ -628,17 +723,26 @@ def _save_plotter_state(payload: dict[str, Any]) -> None:
 
 
 def stop_serial_reader() -> None:
-    global serial_reader
+    global serial_reader, edr_serial_reader
     with serial_lock:
         reader = serial_reader
         serial_reader = None
-    if reader is None:
-        return
-    try:
-        reader.stop()
-        reader.join(timeout=2)
-    except Exception:
-        pass
+        edr_reader = edr_serial_reader
+        edr_serial_reader = None
+
+    if reader is not None:
+        try:
+            reader.stop()
+            reader.join(timeout=2)
+        except Exception:
+            pass
+
+    if edr_reader is not None:
+        try:
+            edr_reader.stop()
+            edr_reader.join(timeout=2)
+        except Exception:
+            pass
 
 
 def start_serial_reader_from_snapshot() -> None:
@@ -670,9 +774,44 @@ def start_serial_reader_from_snapshot() -> None:
         serial_reader = reader
 
 
+def start_edr_serial_reader_from_snapshot() -> None:
+    global edr_serial_reader
+    with serial_lock:
+        cfg = dict(serial_config_snapshot)
+
+    edr_port = cfg.get("edr_depth_port")
+    if not edr_port:
+        return
+
+    main_port = cfg.get("serial_port")
+    if main_port and str(main_port).strip() == str(edr_port).strip():
+        print("EDR depth port ignorado: coincide con puerto principal.")
+        return
+
+    try:
+        tmp = argparse.Namespace(
+            serial_port=str(edr_port),
+            baudrate=int(cfg.get("edr_depth_baudrate") or 9600),
+            bytesize=int(cfg.get("bytesize") or 8),
+            parity=str(cfg.get("parity") or "N"),
+            stopbits=str(cfg.get("stopbits") or "1"),
+            timeout=float(cfg.get("timeout") if cfg.get("timeout") is not None else 1.0),
+        )
+        serial_cfg = parse_serial_config(tmp)
+    except Exception as exc:
+        print(f"Error en configuración EDR serial guardada: {exc}")
+        return
+
+    reader = SerialReader(serial_cfg, on_line=handle_edr_line)
+    reader.start()
+    with serial_lock:
+        edr_serial_reader = reader
+
+
 def restart_serial_reader() -> None:
     stop_serial_reader()
     start_serial_reader_from_snapshot()
+    start_edr_serial_reader_from_snapshot()
 
 
 @app.route("/api/serial/ports", methods=["GET"])
@@ -716,6 +855,9 @@ def api_config_serial():
         "shk1_code",
         "vib1_code",
         "bat2_code",
+        "edr_depth_port",
+        "edr_depth_baudrate",
+        "edr_depth_code",
         "pump_on_threshold",
         "ingest_url",
         "ingest_key",
@@ -727,6 +869,10 @@ def api_config_serial():
     port = next_snap.get("serial_port")
     if port is not None and str(port).strip() == "":
         next_snap["serial_port"] = None
+
+    edr_port = next_snap.get("edr_depth_port")
+    if edr_port is not None and str(edr_port).strip() == "":
+        next_snap["edr_depth_port"] = None
 
     serial_config_snapshot = next_snap
     _save_serial_config()
@@ -1337,6 +1483,34 @@ def handle_line(line: str) -> None:
         socketio.emit("witsml_data", {"data": line})
 
 
+def handle_edr_line(line: str) -> None:
+    parsed = parse_wits_value_line(line)
+    if parsed is None:
+        return
+
+    edr_code = _cfg_str("edr_depth_code", "0110")
+    if parsed.code != edr_code:
+        return
+
+    with latest_lock:
+        latest_values[parsed.code] = parsed.value
+        if parsed.code != "0110":
+            latest_values["0110"] = parsed.value
+        payload = {
+            "0108": latest_values.get("0108"),
+            "0110": latest_values.get("0110"),
+        }
+
+    if not NO_WEB:
+        socketio.emit("wits_values", payload)
+
+    _update_auto_plotter_snapshot()
+
+    snapshot = _update_decoder_from_latest()
+    if snapshot is not None and not NO_WEB:
+        socketio.emit("decoder_state", snapshot)
+
+
 def main() -> None:
     try:
         # Ensure logs appear immediately on platforms like Render
@@ -1436,10 +1610,10 @@ def main() -> None:
             global serial_reader
             serial_reader = reader
 
+    start_edr_serial_reader_from_snapshot()
+
     def shutdown(*_: object) -> None:
-        if reader is not None:
-            reader.stop()
-            reader.join(timeout=2)
+        stop_serial_reader()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, shutdown)

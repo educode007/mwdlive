@@ -191,6 +191,60 @@
         gap: 10px;
       }
 
+      .collapsible {
+        padding: 0;
+        overflow: hidden;
+      }
+
+      button.collapse-head {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border: 0;
+        border-bottom: 1px solid var(--border);
+        border-radius: 12px 12px 0 0;
+        background: #f7f7f7;
+        padding: 9px 10px;
+        font-weight: 800;
+      }
+
+      .collapsible:not(.open) button.collapse-head {
+        border-radius: 12px;
+        border-bottom: 0;
+      }
+
+      .collapse-head .chev {
+        font-size: 18px;
+        line-height: 1;
+        transform: rotate(90deg);
+      }
+
+      .collapsible:not(.open) .collapse-head .chev {
+        transform: rotate(0deg);
+      }
+
+      .collapse-body {
+        padding: 10px;
+      }
+
+      .collapsible:not(.open) .collapse-body {
+        display: none;
+      }
+
+      .controls.compact-mode .row {
+        grid-template-columns: 1fr;
+      }
+
+      .controls.compact-mode .collapsible .collapse-body {
+        display: none;
+      }
+
+      .controls.compact-mode .collapsible .collapse-head {
+        border-radius: 12px;
+        border-bottom: 0;
+      }
+
       textarea {
         width: 100%;
         height: 180px;
@@ -390,6 +444,57 @@
         font-weight: 700;
       }
 
+      input[type="text"],
+      select {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 6px 8px;
+        font-weight: 700;
+      }
+
+      input[type="color"] {
+        width: 44px;
+        height: 34px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 2px;
+        background: #fff;
+      }
+
+      .label-table-wrap {
+        max-height: 180px;
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fff;
+      }
+
+      .label-table-wrap table {
+        border: 0;
+        border-radius: 0;
+      }
+
+      .label-table-wrap th,
+      .label-table-wrap td {
+        font-size: 11px;
+        text-align: left;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .chip-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        border: 1px solid #777;
+      }
+
       .err {
         color: #c01313;
         font-weight: 700;
@@ -422,6 +527,9 @@
                 <input id="vsp" type="number" step="0.1" value="0" />
               </div>
             </div>
+            <div id="holeDepthInfo" class="hint" style="margin-top: 6px;">
+              Hole Depth (WITS 0110): —
+            </div>
             <div class="hint" style="margin-top: 8px;">
               Pegá 3 columnas sin encabezado: <b>MD(m) INC(deg) AZM(deg)</b>. Acepta tab/espacios. Decimal con coma (ej: 380,37).
             </div>
@@ -429,45 +537,102 @@
           </div>
 
           <div class="row">
-            <div class="panel">
-              <div style="font-weight: 800; margin-bottom: 6px;">Pegar Real</div>
-              <textarea id="realInput" placeholder="0,00\t0,00\t0,00\n380,37\t1,00\t280,70\n..."></textarea>
-              <div class="btnbar" style="margin-top: 8px; align-items: flex-end;">
-                <div class="field">
-                  <span>MD</span>
-                  <input id="realMD" type="number" step="0.01" placeholder="m" />
+            <div class="panel collapsible open" id="realSection">
+              <button id="toggleRealSection" class="collapse-head" type="button" aria-expanded="true">
+                <span>Pegar Real</span>
+                <span class="chev">›</span>
+              </button>
+              <div class="collapse-body">
+                <textarea id="realInput" placeholder="0,00\t0,00\t0,00\n380,37\t1,00\t280,70\n..."></textarea>
+                <div class="btnbar" style="margin-top: 8px; align-items: flex-end;">
+                  <div class="field">
+                    <span>MD</span>
+                    <input id="realMD" type="number" step="0.01" placeholder="m" />
+                  </div>
+                  <div class="field">
+                    <span>Inc</span>
+                    <input id="realInc" type="number" step="0.01" placeholder="deg" />
+                  </div>
+                  <div class="field">
+                    <span>Azm</span>
+                    <input id="realAzm" type="number" step="0.01" placeholder="deg" />
+                  </div>
+                  <button id="addRealPoint">Agregar punto</button>
                 </div>
-                <div class="field">
-                  <span>Inc</span>
-                  <input id="realInc" type="number" step="0.01" placeholder="deg" />
+                <div class="btnbar" style="margin-top: 8px;">
+                  <button class="primary" id="loadReal">Cargar Real</button>
+                  <button id="clearReal">Limpiar</button>
                 </div>
-                <div class="field">
-                  <span>Azm</span>
-                  <input id="realAzm" type="number" step="0.01" placeholder="deg" />
-                </div>
-                <button id="addRealPoint">Agregar punto</button>
-              </div>
-              <div class="btnbar" style="margin-top: 8px;">
-                <button class="primary" id="loadReal">Cargar Real</button>
-                <button id="clearReal">Limpiar</button>
               </div>
             </div>
-            <div class="panel">
-              <div style="font-weight: 800; margin-bottom: 6px;">Pegar Proposal</div>
-              <textarea id="proposalInput" placeholder="0,00\t0,00\t0,00\n..."></textarea>
-              <div class="btnbar" style="margin-top: 8px;">
-                <button class="primary" id="loadProposal">Cargar Proposal</button>
-                <button id="clearProposal">Limpiar</button>
+            <div class="panel collapsible open" id="proposalSection">
+              <button id="toggleProposalSection" class="collapse-head" type="button" aria-expanded="true">
+                <span>Pegar Proposal</span>
+                <span class="chev">›</span>
+              </button>
+              <div class="collapse-body">
+                <textarea id="proposalInput" placeholder="0,00\t0,00\t0,00\n..."></textarea>
+                <div class="btnbar" style="margin-top: 8px;">
+                  <button class="primary" id="loadProposal">Cargar Proposal</button>
+                  <button id="clearProposal">Limpiar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel collapsible" id="labelsSection">
+            <button id="toggleLabelsSection" class="collapse-head" type="button" aria-expanded="false">
+              <span>Etiquetas por profundidad</span>
+              <span class="chev">›</span>
+            </button>
+            <div class="collapse-body">
+              <div class="hint" style="margin-bottom: 8px;">
+                Cargá etiquetas como KOP, Shoe, TD por MD. Se dibujan en Top y VS.
+              </div>
+              <div class="btnbar" style="align-items: flex-end;">
+                <div class="field">
+                  <span>Etiqueta</span>
+                  <input id="depthLabelName" type="text" placeholder="KOP" style="width: 120px;" />
+                </div>
+                <div class="field">
+                  <span>MD</span>
+                  <input id="depthLabelMD" type="number" step="0.01" placeholder="m" />
+                </div>
+                <div class="field">
+                  <span>Curva</span>
+                  <select id="depthLabelTarget" style="width: 110px;">
+                    <option value="real">Real</option>
+                    <option value="proposal">Proposal</option>
+                    <option value="both">Ambas</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <span>Color</span>
+                  <input id="depthLabelColor" type="color" value="#f59e0b" />
+                </div>
+                <button id="addDepthLabel" type="button">Agregar</button>
+              </div>
+              <div class="btnbar" style="margin-top: 8px; justify-content: space-between;">
+                <span class="hint">Si la MD queda fuera de la curva, la etiqueta no se grafica.</span>
+                <button id="clearDepthLabels" type="button">Limpiar etiquetas</button>
+              </div>
+              <div class="label-table-wrap" style="margin-top: 8px;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Etiqueta</th>
+                      <th>MD</th>
+                      <th>Curva</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="depthLabelsBody"></tbody>
+                </table>
               </div>
             </div>
           </div>
 
           <div class="panel">
-            <div class="btnbar">
-              <button id="saveLocal">Guardar en navegador</button>
-              <button id="loadLocal">Cargar del navegador</button>
-              <button id="resetAll">Reset</button>
-            </div>
             <div class="hint" style="margin-top: 8px;">
               Los plots se actualizan al cargar datasets. TVD se grafica hacia abajo.
             </div>
@@ -517,8 +682,6 @@
                 <button id="measureToggle">Medir</button>
                 <button id="clearMeasures">Borrar medidas</button>
                 <button id="dlAll">Descargar todo</button>
-                <button id="dlTop">Descargar Top (PDF)</button>
-                <button id="dlVS">Descargar VS (PDF)</button>
               </div>
             </div>
             <div id="view-top" class="view active"><div id="plotTop" class="plot"></div></div>
@@ -537,8 +700,6 @@
               <button id="measureToggle">Medir</button>
               <button id="clearMeasures">Borrar medidas</button>
               <button id="dlAll">Descargar todo</button>
-              <button id="dlTop">Descargar Top (PDF)</button>
-              <button id="dlVS">Descargar VS (PDF)</button>
               <span id="measureHint" class="hint" style="margin-left: 6px;"></span>
             </div>
             <div class="hint">
@@ -602,11 +763,24 @@
       const plotVSEl = document.getElementById('plotVS');
 
       const controlsPanelEl = document.getElementById('controlsPanel');
-      const dlTopBtn = document.getElementById('dlTop');
-      const dlVSBtn = document.getElementById('dlVS');
       const dlAllBtn = document.getElementById('dlAll');
       const openConfigLinkEl = document.getElementById('openConfigLink');
       const plotterLinkEl = document.getElementById('plotterLink');
+      const holeDepthInfoEl = document.getElementById('holeDepthInfo');
+      const realSectionEl = document.getElementById('realSection');
+      const proposalSectionEl = document.getElementById('proposalSection');
+      const labelsSectionEl = document.getElementById('labelsSection');
+      const toggleRealSectionBtn = document.getElementById('toggleRealSection');
+      const toggleProposalSectionBtn = document.getElementById('toggleProposalSection');
+      const toggleLabelsSectionBtn = document.getElementById('toggleLabelsSection');
+
+      const depthLabelNameEl = document.getElementById('depthLabelName');
+      const depthLabelMDEl = document.getElementById('depthLabelMD');
+      const depthLabelTargetEl = document.getElementById('depthLabelTarget');
+      const depthLabelColorEl = document.getElementById('depthLabelColor');
+      const addDepthLabelBtn = document.getElementById('addDepthLabel');
+      const clearDepthLabelsBtn = document.getElementById('clearDepthLabels');
+      const depthLabelsBodyEl = document.getElementById('depthLabelsBody');
 
       const measureToggleBtn = document.getElementById('measureToggle');
       const clearMeasuresBtn = document.getElementById('clearMeasures');
@@ -614,6 +788,9 @@
 
       let real = null;
       let proposal = null;
+      let depthLabels = [];
+      let holeDepthMd = null;
+      let holeDepthSource = '';
       let activeDataset = 'real';
       let selectedIndex = null;
 
@@ -627,6 +804,12 @@
 
       let lastViewerSeq = null;
       let lastViewerTs = null;
+      let lastViewerDepthLabelsSig = '';
+      let lastViewerLabelsSeq = null;
+
+      let renderQueued = false;
+      let lastRenderTs = 0;
+      const MIN_RENDER_INTERVAL_MS = 180;
 
       let viewerActivePlot = 'top';
       let viewerInitialAutoFitDone = false;
@@ -650,6 +833,23 @@
           });
         } catch (_) {
         }
+      }
+
+      function requestRenderPlots(force = false) {
+        const now = Date.now();
+        if (force || (now - lastRenderTs) >= MIN_RENDER_INTERVAL_MS) {
+          lastRenderTs = now;
+          renderPlots();
+          return;
+        }
+        if (renderQueued) return;
+        renderQueued = true;
+        const waitMs = Math.max(0, MIN_RENDER_INTERVAL_MS - (now - lastRenderTs));
+        window.setTimeout(() => {
+          renderQueued = false;
+          lastRenderTs = Date.now();
+          renderPlots();
+        }, waitMs);
       }
 
       function startViewerPolling() {
@@ -684,7 +884,7 @@
           if (vsView) vsView.classList.toggle('hidden', viewerActivePlot !== 'vs');
         } catch (_) {
         }
-        renderPlots();
+        requestRenderPlots(true);
         viewerResizePlotsDeferred();
       }
 
@@ -732,6 +932,9 @@
           source: 'desktop',
           seq: ++desktopIngestSeq,
           vsp: Number.isFinite(vsp) ? vsp : null,
+          depth_labels: Array.isArray(depthLabels)
+            ? depthLabels.map((x) => normalizeDepthLabel(x)).filter(Boolean)
+            : [],
           surveys: {
             real: realRows.map((r) => ({ md: r.md, inc: r.inc, azm: r.azm })),
             proposal: propRows.map((r) => ({ md: r.md, inc: r.inc, azm: r.azm })),
@@ -739,30 +942,42 @@
         };
       }
 
+      function publishDesktopStateNow() {
+        if (isViewer) return;
+        try {
+          const payload = desktopBuildIngestPayload();
+          postPlotterPayload(payload);
+        } catch (_) {
+        }
+      }
+
+      function postPlotterPayload(payload) {
+        return fetch('/api/plotter/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+          .then((r) => (r && r.ok) ? r.json() : null)
+          .then((js) => {
+            if (!js) return;
+            if (js.ok === false) {
+              setError(`publish error: ${js.error ? String(js.error) : 'unknown'}`);
+              return;
+            }
+            if (js.remote_ok === false) {
+              setError(`publish warning: ${js.error ? String(js.error) : 'remote ingest no disponible'}`);
+            }
+          })
+          .catch(() => {});
+      }
+
       function startDesktopIngestLoop() {
         if (isViewer) return;
-
-        const url = '/api/plotter/publish';
 
         window.setInterval(() => {
           try {
             const payload = desktopBuildIngestPayload();
-            fetch(url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(payload),
-            })
-              .then((r) => (r && r.ok) ? r.json() : null)
-              .then((js) => {
-                if (!js) return;
-                if (js.ok === false) {
-                  setError(`publish error: ${js.error ? String(js.error) : 'unknown'}`);
-                }
-              })
-              .catch(() => {
-              });
+            postPlotterPayload(payload);
           } catch (_) {
           }
         }, 5000);
@@ -974,8 +1189,6 @@
         }
       }
 
-      dlTopBtn.addEventListener('click', () => downloadPlotPdfFor('top', 'mwd_top'));
-      dlVSBtn.addEventListener('click', () => downloadPlotPdfFor('vs', 'mwd_vs'));
       if (dlAllBtn) {
         dlAllBtn.addEventListener('click', () => {
           downloadAllArtifacts();
@@ -991,10 +1204,160 @@
             vsp: Number(vspEl.value),
             vspUserSet: !!vspEl.dataset.userSet,
             activeDataset,
+            realSectionOpen: !!(realSectionEl && realSectionEl.classList.contains('open')),
+            proposalSectionOpen: !!(proposalSectionEl && proposalSectionEl.classList.contains('open')),
+            labelsSectionOpen: !!(labelsSectionEl && labelsSectionEl.classList.contains('open')),
+            depthLabels,
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         } catch (_) {
         }
+      }
+
+      function normalizeDepthLabel(item) {
+        if (!item || typeof item !== 'object') return null;
+        const name = String(item.name || '').trim();
+        const md = Number(item.md);
+        const targetRaw = String(item.target || 'real').toLowerCase();
+        const target = (targetRaw === 'proposal' || targetRaw === 'both') ? targetRaw : 'real';
+        const color = String(item.color || '#f59e0b');
+        if (!name || !Number.isFinite(md)) return null;
+        return { name, md, target, color };
+      }
+
+      function buildDepthLabelsSignature(items) {
+        if (!Array.isArray(items) || !items.length) return '';
+        return items
+          .map((x) => normalizeDepthLabel(x))
+          .filter(Boolean)
+          .map((x) => `${x.name}|${x.md.toFixed(3)}|${x.target}|${x.color}`)
+          .join('||');
+      }
+
+      function renderDepthLabelsTable() {
+        if (!depthLabelsBodyEl) return;
+        depthLabelsBodyEl.innerHTML = '';
+        if (!Array.isArray(depthLabels) || !depthLabels.length) return;
+
+        for (let i = 0; i < depthLabels.length; i++) {
+          const row = depthLabels[i];
+          const tr = document.createElement('tr');
+
+          const tdName = document.createElement('td');
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          const dot = document.createElement('span');
+          dot.className = 'chip-dot';
+          dot.style.background = row.color;
+          chip.appendChild(dot);
+          chip.appendChild(document.createTextNode(row.name));
+          tdName.appendChild(chip);
+
+          const tdMd = document.createElement('td');
+          tdMd.textContent = row.md.toFixed(2);
+
+          const tdTarget = document.createElement('td');
+          tdTarget.textContent = row.target === 'both' ? 'Ambas' : (row.target === 'proposal' ? 'Proposal' : 'Real');
+
+          const tdDel = document.createElement('td');
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.textContent = 'Quitar';
+          delBtn.dataset.labelIndex = String(i);
+          tdDel.appendChild(delBtn);
+
+          tr.appendChild(tdName);
+          tr.appendChild(tdMd);
+          tr.appendChild(tdTarget);
+          tr.appendChild(tdDel);
+          depthLabelsBodyEl.appendChild(tr);
+        }
+      }
+
+      function interpolateRowAtMD(rows, md) {
+        if (!Array.isArray(rows) || rows.length === 0 || !Number.isFinite(md)) return null;
+        const first = rows[0];
+        const last = rows[rows.length - 1];
+        if (!first || !last || md < first.md || md > last.md) return null;
+
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i];
+          if (Math.abs(r.md - md) < 1e-9) return { ...r };
+        }
+
+        for (let i = 1; i < rows.length; i++) {
+          const a = rows[i - 1];
+          const b = rows[i];
+          if (md < a.md || md > b.md) continue;
+          const span = b.md - a.md;
+          if (!Number.isFinite(span) || Math.abs(span) < 1e-9) return { ...a };
+          const t = (md - a.md) / span;
+          const lerp = (v1, v2) => v1 + (v2 - v1) * t;
+          return {
+            md,
+            inc: lerp(a.inc, b.inc),
+            azm: lerp(a.azm, b.azm),
+            ns: lerp(a.ns, b.ns),
+            ew: lerp(a.ew, b.ew),
+            tvd: lerp(a.tvd, b.tvd),
+            dls: lerp(a.dls, b.dls),
+          };
+        }
+        return null;
+      }
+
+      function updateHoleDepthInfo() {
+        if (!holeDepthInfoEl) return;
+        if (!Number.isFinite(holeDepthMd)) {
+          holeDepthInfoEl.textContent = 'Hole Depth (WITS 0110): —';
+          return;
+        }
+        const src = holeDepthSource ? ` (${holeDepthSource})` : '';
+        holeDepthInfoEl.textContent = `Hole Depth (WITS 0110): ${holeDepthMd.toFixed(2)} m${src}`;
+      }
+
+      function applyHoleDepthFromPayload(payload) {
+        if (!payload || typeof payload !== 'object') return false;
+
+        const candidates = [];
+        if (payload.wits && typeof payload.wits === 'object') {
+          candidates.push({ value: payload.wits['0110'], source: 'wits.0110' });
+        }
+        candidates.push({ value: payload['0110'], source: '0110' });
+        candidates.push({ value: payload.hole_depth, source: 'hole_depth' });
+        candidates.push({ value: payload.holeDepth, source: 'holeDepth' });
+
+        let next = null;
+        let src = '';
+        for (const c of candidates) {
+          if (!c) continue;
+          const n = Number(c.value);
+          if (Number.isFinite(n)) {
+            next = n;
+            src = c.source;
+            break;
+          }
+        }
+
+        const changed = (next === null && holeDepthMd !== null)
+          || (next !== null && (!Number.isFinite(holeDepthMd) || Math.abs(holeDepthMd - next) > 1e-9));
+
+        holeDepthMd = next;
+        holeDepthSource = next === null ? '' : src;
+        updateHoleDepthInfo();
+        return changed;
+      }
+
+      function setSectionOpen(sectionEl, toggleBtn, open) {
+        if (!sectionEl || !toggleBtn) return;
+        const isOpen = !!open;
+        sectionEl.classList.toggle('open', isOpen);
+        toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      }
+
+      function setCompactMode(enabled) {
+        if (!controlsPanelEl) return;
+        controlsPanelEl.classList.remove('compact-mode');
       }
 
       function restoreState() {
@@ -1012,6 +1375,21 @@
           if (payload.activeDataset === 'proposal' || payload.activeDataset === 'real') {
             activeDataset = payload.activeDataset;
           }
+          depthLabels = Array.isArray(payload.depthLabels)
+            ? payload.depthLabels.map(normalizeDepthLabel).filter(Boolean)
+            : [];
+          lastViewerDepthLabelsSig = buildDepthLabelsSignature(depthLabels);
+          if (payload.realSectionOpen === true || payload.realSectionOpen === false) {
+            setSectionOpen(realSectionEl, toggleRealSectionBtn, payload.realSectionOpen);
+          }
+          if (payload.proposalSectionOpen === true || payload.proposalSectionOpen === false) {
+            setSectionOpen(proposalSectionEl, toggleProposalSectionBtn, payload.proposalSectionOpen);
+          }
+          if (payload.labelsSectionOpen === true || payload.labelsSectionOpen === false) {
+            setSectionOpen(labelsSectionEl, toggleLabelsSectionBtn, payload.labelsSectionOpen);
+          }
+          setCompactMode(false);
+          renderDepthLabelsTable();
         } catch (_) {
         }
       }
@@ -1073,7 +1451,7 @@
         vsMeasures = [];
         measurePendingTop = null;
         measurePendingVS = null;
-        renderPlots();
+        requestRenderPlots();
       }
 
       function datasetFromTraceName(name) {
@@ -1262,6 +1640,8 @@
         try {
           if (!payload || typeof payload !== 'object') return;
 
+          applyHoleDepthFromPayload(payload);
+
           let incomingSeq = null;
           let incomingTs = null;
 
@@ -1294,9 +1674,18 @@
             }
           }
 
+          const incomingLabels = Array.isArray(payload.depth_labels)
+            ? payload.depth_labels
+            : (Array.isArray(payload.depthLabels) ? payload.depthLabels : null);
+          if (incomingLabels) {
+            depthLabels = incomingLabels.map(normalizeDepthLabel).filter(Boolean);
+            renderDepthLabelsTable();
+          }
+          lastViewerDepthLabelsSig = buildDepthLabelsSignature(depthLabels);
+
           recomputeVSPIfAuto();
           renderTable();
-          renderPlots();
+          requestRenderPlots();
 
           viewerResizePlotsDeferred();
 
@@ -1327,14 +1716,24 @@
           if (!data || typeof data !== 'object') return false;
 
           const nextSeq = (data.seq !== undefined && data.seq !== null) ? Number(data.seq) : null;
-          const nextTs = (data.ts !== undefined && data.ts !== null) ? Number(data.ts) : null;
           const hasSeq = Number.isFinite(nextSeq);
-          const hasTs = Number.isFinite(nextTs);
-
+          const holeChanged = applyHoleDepthFromPayload(data);
           const seqChanged = hasSeq && (lastViewerSeq === null || nextSeq !== lastViewerSeq);
-          const tsChanged = hasTs && (lastViewerTs === null || nextTs !== lastViewerTs);
-          if (seqChanged || tsChanged || lastViewerSeq === null) {
+
+          // labels_seq: dedicated counter that only increments when depth_labels change
+          const nextLabelsSeq = (data.labels_seq !== undefined && data.labels_seq !== null) ? Number(data.labels_seq) : null;
+          const labelsSeqChanged = Number.isFinite(nextLabelsSeq) && nextLabelsSeq !== lastViewerLabelsSeq;
+
+          // Fallback: also compare label signature for servers without labels_seq
+          const incomingLabels = Array.isArray(data.depth_labels)
+            ? data.depth_labels
+            : (Array.isArray(data.depthLabels) ? data.depthLabels : null);
+          const nextLabelSig = incomingLabels ? buildDepthLabelsSignature(incomingLabels) : null;
+          const labelSigChanged = nextLabelSig !== null && nextLabelSig !== lastViewerDepthLabelsSig;
+
+          if (seqChanged || lastViewerSeq === null || holeChanged || labelsSeqChanged || labelSigChanged) {
             applyIngestState(data);
+            if (Number.isFinite(nextLabelsSeq)) lastViewerLabelsSeq = nextLabelsSeq;
             return true;
           }
           return false;
@@ -1404,7 +1803,7 @@
         showRealBtn.classList.toggle('primary', which === 'real');
         showProposalBtn.classList.toggle('primary', which === 'proposal');
         renderTable();
-        renderPlots();
+        requestRenderPlots();
         saveState();
       }
 
@@ -1421,7 +1820,7 @@
             if (activeDataset === 'proposal') selectedIndex = null;
           }
           renderTable();
-          renderPlots();
+          requestRenderPlots();
           saveState();
           return;
         }
@@ -1442,7 +1841,7 @@
           }
           recomputeVSPIfAuto();
           renderTable();
-          renderPlots();
+          requestRenderPlots();
           saveState();
         } catch (_) {
           // Mientras se edita (texto parcial), no pisamos el dataset válido anterior.
@@ -1469,7 +1868,7 @@
           tr.addEventListener('click', () => {
             selectedIndex = i;
             renderTable();
-            renderPlots();
+            requestRenderPlots();
           });
 
           function td(v) {
@@ -1556,12 +1955,18 @@
 
         const tracesTop = [];
         const tracesVS = [];
+        const topAnnotations = [];
+        const vsAnnotations = [];
 
         function addDatasetTraces(rows, name, color) {
           if (!rows || !rows.length) return;
 
-          const hover = makeHover(rows, vspDeg);
           const vsRows = computeVS(rows, vspDeg);
+          const vsX = vsRows.map((r) => r.vs);
+          const vsY = vsRows.map((r) => r.tvd);
+          const manyRows = rows.length > 600;
+          const veryManyRows = rows.length > 1200;
+          const hover = veryManyRows ? null : makeHover(rows, vspDeg);
 
           tracesTop.push({
             type: 'scatter',
@@ -1569,28 +1974,54 @@
             name,
             x: rows.map((r) => r.ew),
             y: rows.map((r) => r.ns),
-            text: hover,
-            hoverinfo: 'text',
+            text: hover || undefined,
+            hoverinfo: hover ? 'text' : 'skip',
             line: { color, width: 3.2 },
             marker: { color, size: 6 },
           });
 
           tracesVS.push({
-            type: 'scatter',
-            mode: 'lines+markers',
+            type: 'scattergl',
+            mode: manyRows ? 'lines' : 'lines+markers',
             name,
-            x: vsRows.map((r) => r.vs),
-            y: vsRows.map((r) => r.tvd),
-            text: hover,
-            hoverinfo: 'text',
+            x: vsX,
+            y: vsY,
+            text: hover || undefined,
+            hoverinfo: hover ? 'text' : 'skip',
             line: { color, width: 3.2 },
-            marker: { color, size: 6 },
+            marker: { color, size: manyRows ? 7 : 9 },
           });
+
+          if (manyRows) {
+            const step = Math.max(2, Math.ceil(vsRows.length / 220));
+            const xs = [];
+            const ys = [];
+            const hs = [];
+            for (let i = 0; i < vsRows.length; i += step) {
+              const row = vsRows[i];
+              xs.push(row.vs);
+              ys.push(row.tvd);
+              hs.push(hover ? hover[i] : `MD=${row.md.toFixed(2)} m<br>Inc=${row.inc.toFixed(2)}°<br>Azm(G)=${row.azm.toFixed(2)}°<br>NS=${row.ns.toFixed(2)} m<br>EW=${row.ew.toFixed(2)} m<br>TVD=${row.tvd.toFixed(2)} m<br>VS=${row.vs.toFixed(2)} m<br>DLS=${row.dls.toFixed(2)}`);
+            }
+            tracesVS.push({
+              type: 'scattergl',
+              mode: 'markers',
+              x: xs,
+              y: ys,
+              text: hs,
+              hoverinfo: 'text',
+              marker: { color, size: 11, opacity: 0.95 },
+              showlegend: false,
+              name: `${name} pts`,
+            });
+          }
 
           if (selectedIndex !== null && selectedIndex !== undefined && rows[selectedIndex]) {
             const r = rows[selectedIndex];
-            const selHover = makeHover(rows, vspDeg)[selectedIndex];
-            const selVS = computeVS(rows, vspDeg)[selectedIndex];
+            const selVS = vsRows[selectedIndex];
+            const selHover = hover && hover[selectedIndex]
+              ? hover[selectedIndex]
+              : `MD=${r.md.toFixed(2)} m<br>Inc=${r.inc.toFixed(2)}°<br>Azm(G)=${r.azm.toFixed(2)}°<br>NS=${r.ns.toFixed(2)} m<br>EW=${r.ew.toFixed(2)} m<br>TVD=${r.tvd.toFixed(2)} m<br>VS=${selVS && Number.isFinite(selVS.vs) ? selVS.vs.toFixed(2) : '0.00'} m<br>DLS=${r.dls.toFixed(2)}`;
 
             tracesTop.push({
               type: 'scatter',
@@ -1605,7 +2036,7 @@
             });
 
             tracesVS.push({
-              type: 'scatter',
+              type: 'scattergl',
               mode: 'markers',
               name: `${name} (sel)`,
               x: [selVS.vs],
@@ -1620,6 +2051,130 @@
 
         addDatasetTraces(real, 'Real', '#c01313');
         addDatasetTraces(proposal, 'Proposal', '#2a49ff');
+
+        function addDepthLabelTraceForDataset(label, rows, dsName) {
+          const at = interpolateRowAtMD(rows, label.md);
+          if (!at) return;
+          const a = deg2rad(vspDeg);
+          const vs = (at.ns * Math.cos(a)) + (at.ew * Math.sin(a));
+          const text = `${label.name}<br>MD ${label.md.toFixed(2)} m`;
+          const isReal = dsName === 'Real';
+          const topAx = (at.ew >= 0 ? 126 : -126) + (isReal ? 12 : -12);
+          const topAy = (at.ns >= 0 ? -96 : 96);
+          const vsAx = (vs >= 0 ? 126 : -126) + (isReal ? 12 : -12);
+          const vsAy = (at.tvd >= 0 ? -96 : 96);
+
+          tracesTop.push({
+            type: 'scatter',
+            mode: 'markers',
+            x: [at.ew],
+            y: [at.ns],
+            hoverinfo: 'text',
+            text: [`${label.name} (MD ${label.md.toFixed(2)} m) - ${dsName}`],
+            marker: { color: label.color, size: 10, symbol: 'diamond', line: { color: '#111', width: 1 } },
+            name: `${label.name} - ${dsName}`,
+            showlegend: false,
+          });
+
+          topAnnotations.push({
+            x: at.ew,
+            y: at.ns,
+            text,
+            showarrow: true,
+            arrowhead: 2,
+            arrowsize: 1,
+            arrowwidth: 1.4,
+            arrowcolor: label.color,
+            ax: topAx,
+            ay: topAy,
+            bgcolor: 'rgba(255,255,255,0.92)',
+            bordercolor: label.color,
+            borderwidth: 1,
+            borderpad: 4,
+            font: { size: 11, color: '#1f2937' },
+            align: 'left',
+          });
+
+          tracesVS.push({
+            type: 'scatter',
+            mode: 'markers',
+            x: [vs],
+            y: [at.tvd],
+            hoverinfo: 'text',
+            text: [`${label.name} (MD ${label.md.toFixed(2)} m) - ${dsName}`],
+            marker: { color: label.color, size: 10, symbol: 'diamond', line: { color: '#111', width: 1 } },
+            name: `${label.name} - ${dsName}`,
+            showlegend: false,
+          });
+
+          vsAnnotations.push({
+            x: vs,
+            y: at.tvd,
+            text,
+            showarrow: true,
+            arrowhead: 2,
+            arrowsize: 1,
+            arrowwidth: 1.4,
+            arrowcolor: label.color,
+            ax: vsAx,
+            ay: vsAy,
+            bgcolor: 'rgba(255,255,255,0.92)',
+            bordercolor: label.color,
+            borderwidth: 1,
+            borderpad: 4,
+            font: { size: 11, color: '#1f2937' },
+            align: 'left',
+          });
+        }
+
+        for (const label of depthLabels) {
+          if (!label) continue;
+          if (label.target === 'real' || label.target === 'both') {
+            addDepthLabelTraceForDataset(label, real, 'Real');
+          }
+          if (label.target === 'proposal' || label.target === 'both') {
+            addDepthLabelTraceForDataset(label, proposal, 'Proposal');
+          }
+        }
+
+        if (Number.isFinite(holeDepthMd)) {
+          const holeRows = (real && real.length) ? real : ((proposal && proposal.length) ? proposal : null);
+          const holeDsName = (real && real.length) ? 'Real' : ((proposal && proposal.length) ? 'Proposal' : '');
+          const at = interpolateRowAtMD(holeRows, holeDepthMd);
+          if (at) {
+            const a = deg2rad(vspDeg);
+            const vs = (at.ns * Math.cos(a)) + (at.ew * Math.sin(a));
+            const text = `Hole Depth ${holeDepthMd.toFixed(2)} m${holeDsName ? ` (${holeDsName})` : ''}`;
+
+            tracesTop.push({
+              type: 'scatter',
+              mode: 'markers+text',
+              x: [at.ew],
+              y: [at.ns],
+              text: [text],
+              textposition: 'bottom center',
+              textfont: { size: 11, color: '#111' },
+              hoverinfo: 'text',
+              marker: { color: '#111', size: 11, symbol: 'x', line: { color: '#fff', width: 1 } },
+              name: 'Hole Depth',
+              showlegend: false,
+            });
+
+            tracesVS.push({
+              type: 'scatter',
+              mode: 'markers+text',
+              x: [vs],
+              y: [at.tvd],
+              text: [text],
+              textposition: 'bottom center',
+              textfont: { size: 11, color: '#111' },
+              hoverinfo: 'text',
+              marker: { color: '#111', size: 11, symbol: 'x', line: { color: '#fff', width: 1 } },
+              name: 'Hole Depth',
+              showlegend: false,
+            });
+          }
+        }
 
         for (const m of topMeasures) {
           if (!m || !m.a || !m.b) continue;
@@ -1680,6 +2235,7 @@
           xaxis: { title: 'East-West (m)', zeroline: true },
           yaxis: { title: 'North-South (m)', scaleanchor: 'x', scaleratio: 1, zeroline: true },
           legend: { orientation: 'h' },
+          annotations: topAnnotations,
         };
 
         if (topKeep.x && topKeep.y) {
@@ -1699,9 +2255,10 @@
           uirevision: 'keep',
           margin: { l: 60, r: 20, t: 30, b: 50 },
           title: `VS View (VSP=${vspDeg.toFixed(1)}°)`,
-          xaxis: { title: 'Vertical Section (m)', zeroline: true, tick0: 0, dtick: 100 },
-          yaxis: { title: 'TVD (m)', autorange: 'reversed', scaleanchor: 'x', scaleratio: 1, tick0: 0, dtick: 100 },
+          xaxis: { title: 'Vertical Section (m)', zeroline: true },
+          yaxis: { title: 'TVD (m)', autorange: 'reversed', zeroline: true },
           legend: { orientation: 'h' },
+          annotations: vsAnnotations,
         };
 
         if (vsKeep.x && vsKeep.y) {
@@ -1711,32 +2268,6 @@
           if (yr) {
             vsLayout.yaxis.autorange = false;
             vsLayout.yaxis.range = yr;
-          }
-        } else {
-          const xExt = extent(collectVals(tracesVS, 'x'));
-          const yExt = extent(collectVals(tracesVS, 'y'));
-          if (yExt) {
-            vsLayout.yaxis.autorange = false;
-            const yr = paddedRange(yExt.min, yExt.max);
-            vsLayout.yaxis.range = [yr[1], yr[0]];
-
-            if (xExt) {
-              vsLayout.xaxis.autorange = false;
-
-              const ySpan = Math.max(1e-6, yr[1] - yr[0]);
-              const w = Number(plotVSEl && plotVSEl.clientWidth);
-              const h = Number(plotVSEl && plotVSEl.clientHeight);
-              const aspect = (Number.isFinite(w) && Number.isFinite(h) && h > 0) ? (w / h) : 2;
-              const xSpan = ySpan * aspect;
-
-              const xMin = (xExt.min < 0) ? (xExt.min - 0.08 * (xExt.max - xExt.min)) : 0;
-              let xMax = xMin + xSpan;
-              const needMax = xExt.max + 0.08 * (xExt.max - xExt.min);
-              if (needMax > xMax) {
-                xMax = needMax;
-              }
-              vsLayout.xaxis.range = [xMin, xMax];
-            }
           }
         }
 
@@ -1782,7 +2313,7 @@
       vspEl.addEventListener('input', () => {
         vspEl.dataset.userSet = '1';
         renderTable();
-        renderPlots();
+        requestRenderPlots();
         scheduleSave();
       });
 
@@ -1794,7 +2325,7 @@
         else proposal = computed;
         recomputeVSPIfAuto();
         renderTable();
-        renderPlots();
+        requestRenderPlots();
         saveState();
       }
 
@@ -1821,7 +2352,7 @@
         real = null;
         selectedIndex = null;
         renderTable();
-        renderPlots();
+        requestRenderPlots();
         saveState();
       });
 
@@ -1830,64 +2361,93 @@
         proposal = null;
         selectedIndex = null;
         renderTable();
-        renderPlots();
+        requestRenderPlots();
         saveState();
       });
+
+      if (toggleRealSectionBtn) {
+        toggleRealSectionBtn.addEventListener('click', () => {
+          const next = !(realSectionEl && realSectionEl.classList.contains('open'));
+          setSectionOpen(realSectionEl, toggleRealSectionBtn, next);
+          saveState();
+        });
+      }
+
+      if (toggleProposalSectionBtn) {
+        toggleProposalSectionBtn.addEventListener('click', () => {
+          const next = !(proposalSectionEl && proposalSectionEl.classList.contains('open'));
+          setSectionOpen(proposalSectionEl, toggleProposalSectionBtn, next);
+          saveState();
+        });
+      }
+
+      if (toggleLabelsSectionBtn) {
+        toggleLabelsSectionBtn.addEventListener('click', () => {
+          const next = !(labelsSectionEl && labelsSectionEl.classList.contains('open'));
+          setSectionOpen(labelsSectionEl, toggleLabelsSectionBtn, next);
+          saveState();
+        });
+      }
+
+      if (addDepthLabelBtn) {
+        addDepthLabelBtn.addEventListener('click', () => {
+          const name = depthLabelNameEl ? String(depthLabelNameEl.value || '').trim() : '';
+          const md = depthLabelMDEl ? Number(depthLabelMDEl.value) : Number.NaN;
+          const target = depthLabelTargetEl ? String(depthLabelTargetEl.value || 'real') : 'real';
+          const color = depthLabelColorEl ? String(depthLabelColorEl.value || '#f59e0b') : '#f59e0b';
+
+          if (!name) {
+            setError('Etiqueta: ingresá un nombre (ej. KOP).');
+            return;
+          }
+          if (!Number.isFinite(md)) {
+            setError('Etiqueta: MD inválida.');
+            return;
+          }
+
+          const next = normalizeDepthLabel({ name, md, target, color });
+          if (!next) {
+            setError('Etiqueta inválida.');
+            return;
+          }
+
+          depthLabels.push(next);
+          renderDepthLabelsTable();
+          requestRenderPlots(true);
+          saveState();
+          publishDesktopStateNow();
+          setError('');
+        });
+      }
+
+      if (clearDepthLabelsBtn) {
+        clearDepthLabelsBtn.addEventListener('click', () => {
+          depthLabels = [];
+          renderDepthLabelsTable();
+          requestRenderPlots(true);
+          saveState();
+          publishDesktopStateNow();
+          setError('');
+        });
+      }
+
+      if (depthLabelsBodyEl) {
+        depthLabelsBodyEl.addEventListener('click', (ev) => {
+          const t = ev.target;
+          if (!t || !(t instanceof HTMLElement)) return;
+          const idxRaw = t.dataset ? t.dataset.labelIndex : '';
+          const idx = Number(idxRaw);
+          if (!Number.isInteger(idx) || idx < 0 || idx >= depthLabels.length) return;
+          depthLabels.splice(idx, 1);
+          renderDepthLabelsTable();
+          requestRenderPlots(true);
+          saveState();
+          publishDesktopStateNow();
+        });
+      }
 
       showRealBtn.addEventListener('click', () => setActiveDataset('real'));
       showProposalBtn.addEventListener('click', () => setActiveDataset('proposal'));
-
-      document.getElementById('saveLocal').addEventListener('click', () => {
-        try {
-          const payload = {
-            realText: realInputEl.value,
-            proposalText: proposalInputEl.value,
-            vsp: Number(vspEl.value),
-          };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            ...payload,
-            vspUserSet: !!vspEl.dataset.userSet,
-            activeDataset,
-          }));
-          setError('');
-        } catch (e) {
-          setError(e.message || String(e));
-        }
-      });
-
-      document.getElementById('loadLocal').addEventListener('click', () => {
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return;
-          const payload = JSON.parse(raw);
-          realInputEl.value = payload.realText || '';
-          proposalInputEl.value = payload.proposalText || '';
-          if (payload.vsp !== undefined && payload.vsp !== null && !vspEl.dataset.userSet) {
-            vspEl.value = Number(payload.vsp).toFixed(2);
-          }
-          if (payload.vspUserSet) vspEl.dataset.userSet = '1';
-          if (payload.activeDataset === 'proposal' || payload.activeDataset === 'real') {
-            activeDataset = payload.activeDataset;
-          }
-          setError('');
-        } catch (e) {
-          setError(e.message || String(e));
-        }
-      });
-
-      document.getElementById('resetAll').addEventListener('click', () => {
-        real = null;
-        proposal = null;
-        selectedIndex = null;
-        activeDataset = 'real';
-        vspEl.dataset.userSet = '';
-        vspEl.value = '0';
-        surveysBodyEl.innerHTML = '';
-        Plotly.purge(plotTopEl);
-        Plotly.purge(plotVSEl);
-        setError('');
-        saveState();
-      });
 
       for (const el of document.querySelectorAll('.tab')) {
         el.addEventListener('click', () => {
@@ -1901,17 +2461,24 @@
       }
 
       (function init() {
+        setSectionOpen(realSectionEl, toggleRealSectionBtn, true);
+        setSectionOpen(proposalSectionEl, toggleProposalSectionBtn, true);
+        setSectionOpen(labelsSectionEl, toggleLabelsSectionBtn, false);
+        setCompactMode(false);
+        updateHoleDepthInfo();
+
         if (isViewer) {
           try {
             realInputEl.disabled = true;
             proposalInputEl.disabled = true;
-            document.getElementById('loadReal').disabled = true;
-            document.getElementById('clearReal').disabled = true;
-            document.getElementById('loadProposal').disabled = true;
-            document.getElementById('clearProposal').disabled = true;
-            document.getElementById('saveLocal').disabled = true;
-            document.getElementById('loadLocal').disabled = true;
-            document.getElementById('resetAll').disabled = true;
+            const loadRealBtn = document.getElementById('loadReal');
+            const clearRealBtn = document.getElementById('clearReal');
+            const loadProposalBtn = document.getElementById('loadProposal');
+            const clearProposalBtn = document.getElementById('clearProposal');
+            if (loadRealBtn) loadRealBtn.disabled = true;
+            if (clearRealBtn) clearRealBtn.disabled = true;
+            if (loadProposalBtn) loadProposalBtn.disabled = true;
+            if (clearProposalBtn) clearProposalBtn.disabled = true;
           } catch (_) {
           }
 
@@ -1940,7 +2507,27 @@
           try {
             if (typeof io === 'function') {
               const socket = io();
-              socket.on('state_update', (data) => applyIngestState(data));
+              socket.on('state_update', (data) => {
+                try {
+                  const nextSeq = (data && data.seq !== undefined && data.seq !== null) ? Number(data.seq) : null;
+                  const hasSeq = Number.isFinite(nextSeq);
+                  const seqChanged = hasSeq && (lastViewerSeq === null || nextSeq !== lastViewerSeq);
+                  const holeChanged = applyHoleDepthFromPayload(data);
+                  const nextLabelsSeq = (data && data.labels_seq !== undefined && data.labels_seq !== null) ? Number(data.labels_seq) : null;
+                  const labelsSeqChanged = Number.isFinite(nextLabelsSeq) && nextLabelsSeq !== lastViewerLabelsSeq;
+                  const incomingLabels = Array.isArray(data && data.depth_labels)
+                    ? data.depth_labels
+                    : (Array.isArray(data && data.depthLabels) ? data.depthLabels : null);
+                  const nextLabelSig = incomingLabels ? buildDepthLabelsSignature(incomingLabels) : null;
+                  const labelSigChanged = nextLabelSig !== null && nextLabelSig !== lastViewerDepthLabelsSig;
+                  if (seqChanged || lastViewerSeq === null || holeChanged || labelsSeqChanged || labelSigChanged) {
+                    applyIngestState(data);
+                    if (Number.isFinite(nextLabelsSeq)) lastViewerLabelsSeq = nextLabelsSeq;
+                  }
+                } catch (_) {
+                  applyIngestState(data);
+                }
+              });
               socket.on('connect_error', () => {
                 setError('viewer: socket connect_error (usando polling)');
               });
@@ -1965,6 +2552,16 @@
           setViewerPlot('top');
         } else {
           restoreState();
+          try {
+            if (typeof io === 'function') {
+              const socket = io();
+              socket.on('state_update', (data) => {
+                const changed = applyHoleDepthFromPayload(data);
+                if (changed) requestRenderPlots();
+              });
+            }
+          } catch (_) {
+          }
         }
 
         try {
@@ -2044,7 +2641,7 @@
             measurePendingTop = null;
             topMeasures.push(makePointMeasure(a, b));
             setError('');
-            renderPlots();
+            requestRenderPlots();
           });
           plotTopEl.dataset.measureBound = '1';
         }
@@ -2080,7 +2677,7 @@
             window.setTimeout(() => {
               if (errorEl.textContent && errorEl.textContent.startsWith('VS medir: OK')) setError('');
             }, 1200);
-            renderPlots();
+            requestRenderPlots();
           });
           plotVSEl.dataset.measureBound = '1';
         }
